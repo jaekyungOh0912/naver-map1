@@ -8,9 +8,7 @@
   <script src="./MarkerClustering.js"></script>
   <script src="./markerData.js"></script>
   <script src="./sigunguData.js"></script>
-  <!-- ✅ dongGeoJson.js는 로드하지만 사용하지 않음 -->
-  <script src="./dongData.js"></script>
-  <!-- ✅ 개별 emd 데이터 -->
+  <!-- ✅ dongGeoJson은 사용하지 않음 -->
   <script src="./dongData/emd_11.js"></script>
   <script src="./dongData/emd_26.js"></script>
   <script src="./dongData/emd_27.js"></script>
@@ -52,7 +50,6 @@
     #mapComponent.hide .controlBox,
     #mapComponent.hide .addressBox { display:none; }
   </style>
-  <script src="MarkerClustering.js"></script>
 </head>
 <body>
 <div id="mapComponent">
@@ -79,9 +76,6 @@
 </div>
 
 <script>
-  // 지역변수 등록
-  window.emd_26 = emd_26;
-
   let markerDataList = markerData;
   const map = new naver.maps.Map('map', {
     center: new naver.maps.LatLng(35.144, 129.060),
@@ -89,6 +83,8 @@
   });
 
   const addressBox = document.getElementById("addressBox");
+
+  // ✅ 주소 변환
   function updateAddress(lat, lng) {
     naver.maps.Service.reverseGeocode({
       coords: new naver.maps.LatLng(lat, lng),
@@ -102,65 +98,7 @@
     });
   }
 
-  let myLocationMarker = null;
-  function goMyLocation() {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition((pos)=>{
-      const lat=pos.coords.latitude, lng=pos.coords.longitude;
-      const loc=new naver.maps.LatLng(lat,lng);
-      if(!myLocationMarker){
-        myLocationMarker=new naver.maps.Marker({position:loc,map:map,
-          icon:{url:"https://maps.gstatic.com/mapfiles/ms2/micons/red-dot.png",
-            size:new naver.maps.Size(32,32),scaledSize:new naver.maps.Size(32,32)}});
-      } else myLocationMarker.setPosition(loc);
-      map.setCenter(loc); map.setZoom(16); updateAddress(lat,lng);
-    },()=>{addressBox.innerText="위치 정보를 가져올 수 없습니다.";});
-  }
-
-  function zoomIn(){map.setZoom(map.getZoom()+1);}
-  function zoomOut(){map.setZoom(map.getZoom()-1);}
-
-  const infoWindow=new naver.maps.InfoWindow({borderWidth:0,disableAnchor:true,backgroundColor:"transparent",pixelOffset:new naver.maps.Point(0,-10)});
-  const markers=[];
-
-  function setMarkers(lat,lng,type,name,price,count){
-    const countHTML=(count&&count>0)?`<div style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;background:red;color:white;font-size:11px;font-weight:bold;text-align:center;line-height:18px;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.3);">${count}</div>`:"";
-    const markerHTML=`<div style="position:relative;width:30px;height:30px;"><img src="./image/type${type}.png" style="width:30px;height:30px;"/>${countHTML}</div>`;
-    const marker=new naver.maps.Marker({
-      position:new naver.maps.LatLng(lat,lng),
-      icon:{content:markerHTML,size:new naver.maps.Size(30,30),scaledSize:new naver.maps.Size(30,30)}
-    });
-    naver.maps.Event.addListener(marker,"click",()=>{
-      infoWindow.setContent(`<div style="background:#fff;border:1px solid #ccc;border-radius:8px;padding:10px;width:150px;box-shadow:0 2px 6px rgba(0,0,0,0.2);font-size:13px;">
-      <div style="font-weight:bold;color:#333;margin-bottom:4px;">${name}</div>
-      <div style="color:#d9534f;font-weight:bold;">${price.toLocaleString()}원</div>
-      <button style="margin-top:6px;width:100%;background:#007bff;color:#fff;border:none;border-radius:4px;padding:4px;cursor:pointer;">상세보기</button></div>`);
-      infoWindow.open(map,marker);
-    });
-    naver.maps.Event.addListener(map,"click",()=>infoWindow.close());
-    markers.push(marker);
-  }
-  markerDataList.forEach(v=>setMarkers(v.lat,v.lng,v.type,v.name||"건물명 없음",v.price||0,v.count));
-
-  function getBaseIcon(size){
-    return {
-      content:`<div style="cursor:pointer;width:${size}px;height:${size}px;line-height:${size+2}px;font-size:${Math.max(12,size/3)}px;color:white;text-align:center;font-weight:bold;background:url(./image/baseIcon.png);background-size:contain;"></div>`,
-      size:new naver.maps.Size(size,size),
-      anchor:new naver.maps.Point(size/2,size/2)
-    };
-  }
-  function updateClusterIconsByZoom(){
-    const zoom=map.getZoom(),defaultZoom=16-zoom;
-    let iconSize=(defaultZoom>0)?50+(15*defaultZoom):50;
-    clusterIcons=[1,2,3,4,5].map(()=>getBaseIcon(iconSize));
-    if(cluster) updateMarkersByPolygon();
-  }
-
-  let clusterIcons=[1,2,3,4,5].map(()=>getBaseIcon(40));
-  let cluster=null,activePolygon=null;
-  let dataList=[]; // ✅ dongGeoJson 제거
-  let currentEmdData=null;
-
+  // ✅ 주석 처리됐던 fetch 방식의 주소 검색 기능 복원
   async function searchAddress() {
     const query = document.getElementById("searchInput").value.trim();
     if (!query) return alert("주소를 입력하세요.");
@@ -168,8 +106,7 @@
     const clientId = "n08un8adzv";       // ✅ 발급받은 값
     const clientSecret = "898pT7rHlouyjrsqhdMr9I2q5ec9bDE5JvsdK2eF"; // ✅ 발급받은 값
 
-    // ✅ Geocoding API (주소 → 좌표)
-    const url = https://naveropenapi.apigw.ntruss.com/map-geocode/v2/geocode?query=${encodeURIComponent(query)};
+    const url = `https://naveropenapi.apigw.ntruss.com/map-geocode/v2/geocode?query=${encodeURIComponent(query)}`;
 
     try {
       const res = await fetch(url, {
@@ -206,14 +143,11 @@
           const x = parseFloat(addr.x);
           const newCenter = new naver.maps.LatLng(y, x);
 
-          // ✅ 지도 중심 이동 및 마커 생성
           map.setCenter(newCenter);
           map.setZoom(16);
           new naver.maps.Marker({ position: newCenter, map: map });
 
-          // ✅ 기존 updateAddress 사용 가능
           updateAddress(y, x);
-
           resultBox.innerHTML = "";
         });
 
@@ -225,100 +159,51 @@
     }
   }
 
-  function isPointInsidePolygon(point,paths){
-    const x=point.lng(),y=point.lat();let inside=false;
-    paths.forEach(path=>{
-      for(let i=0,j=path.length-1;i<path.length;j=i++){
-        const xi=path[i].lng(),yi=path[i].lat(),xj=path[j].lng(),yj=path[j].lat();
-        const intersect=((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/((yj-yi)||1e-10)+xi);
-        if(intersect) inside=!inside;
-      }
-    });
-    return inside;
-  }
 
-  function createPolygon(feature){
-    const paths=[];
-    if(feature.geometry.type==="Polygon"){
-      feature.geometry.coordinates.forEach(ring=>paths.push(ring.map(([lng,lat])=>new naver.maps.LatLng(lat,lng))));
-    } else {
-      feature.geometry.coordinates.forEach(poly=>poly.forEach(ring=>paths.push(ring.map(([lng,lat])=>new naver.maps.LatLng(lat,lng)))));
-    }
-    return new naver.maps.Polygon({paths,fillColor:'#FE7E33',fillOpacity:0.1,strokeColor:'#FE7E33',strokeOpacity:1,strokeWeight:2,clickable:false});
+  const infoWindow=new naver.maps.InfoWindow({borderWidth:0,disableAnchor:true,backgroundColor:"transparent",pixelOffset:new naver.maps.Point(0,-10)});
+  const markers=[];
+  function setMarkers(lat,lng,type,name,price,count){
+    const countHTML=(count&&count>0)?`<div style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;background:red;color:white;font-size:11px;font-weight:bold;text-align:center;line-height:18px;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.3);">${count}</div>`:"";
+    const markerHTML=`<div style="position:relative;width:30px;height:30px;"><img src="./image/type${type}.png" style="width:30px;height:30px;"/>${countHTML}</div>`;
+    const marker=new naver.maps.Marker({ position:new naver.maps.LatLng(lat,lng),
+      icon:{content:markerHTML,size:new naver.maps.Size(30,30),scaledSize:new naver.maps.Size(30,30)}});
+    naver.maps.Event.addListener(marker,"click",()=>{infoWindow.setContent(
+      `<div style="background:#fff;border:1px solid #ccc;border-radius:8px;padding:10px;width:150px;box-shadow:0 2px 6px rgba(0,0,0,0.2);font-size:13px;">
+      <div style="font-weight:bold;color:#333;margin-bottom:4px;">${name}</div>
+      <div style="color:#d9534f;font-weight:bold;">${price.toLocaleString()}원</div>
+      <button style="margin-top:6px;width:100%;background:#007bff;color:#fff;border:none;border-radius:4px;padding:4px;cursor:pointer;">상세보기</button></div>`);infoWindow.open(map,marker);});
+    naver.maps.Event.addListener(map,"click",()=>infoWindow.close());
+    markers.push(marker);
   }
+  markerDataList.forEach(v=>setMarkers(v.lat,v.lng,v.type,v.name||"건물명 없음",v.price||0,v.count));
 
-  function updateMarkersByPolygon(){
-    if(!activePolygon){if(cluster)cluster.setMap(null);return;}
-    const paths=activePolygon.getPaths().getArray().map(path=>path.getArray());
-    const visibleMarkers=markers.filter(m=>isPointInsidePolygon(m.getPosition(),paths));
-    if(cluster)cluster.setMap(null);
-    cluster=new MarkerClustering({
-      map,markers:visibleMarkers,disableClickZoom:false,gridSize:300,minClusterSize:1,maxZoom:18,icons:clusterIcons,
-      indexGenerator:[10,100,200,500,1000],
-      stylingFunction:(clusterMarker,count)=>{clusterMarker.getElement().querySelector('div:first-child').innerText=count;}
-    });
-  }
+  function getBaseIcon(size){return {content:`<div style="cursor:pointer;width:${size}px;height:${size}px;line-height:${size+2}px;font-size:${Math.max(12,size/3)}px;color:white;text-align:center;font-weight:bold;background:url(./image/baseIcon.png);background-size:contain;"></div>`,size:new naver.maps.Size(size,size),anchor:new naver.maps.Point(size/2,size/2)};}
+  function updateClusterIconsByZoom(){const zoom=map.getZoom(),defaultZoom=16-zoom;let iconSize=(defaultZoom>0)?50+(15*defaultZoom):50;clusterIcons=[1,2,3,4,5].map(()=>getBaseIcon(iconSize));if(cluster)updateMarkersByPolygon();}
+  let clusterIcons=[1,2,3,4,5].map(()=>getBaseIcon(40));
+  let cluster=null,activePolygon=null;
+  let dataList=[];let currentEmdData=null;
 
-  function renderRegionAtCenter(center){
-    if(activePolygon)activePolygon.setMap(null);activePolygon=null;
-    for(const feature of dataList){
-      const polygon=createPolygon(feature);
-      const paths=polygon.getPaths().getArray().map(path=>path.getArray());
-      if(isPointInsidePolygon(center,paths)){polygon.setMap(map);activePolygon=polygon;break;}
-    }
-    updateMarkersByPolygon();
+  function isPointInsidePolygon(point,paths){const x=point.lng(),y=point.lat();let inside=false;paths.forEach(path=>{for(let i=0,j=path.length-1;i<path.length;j=i++){const xi=path[i].lng(),yi=path[i].lat(),xj=path[j].lng(),yj=path[j].lat();const intersect=((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/((yj-yi)||1e-10)+xi);if(intersect)inside=!inside;}});return inside;}
+  function createPolygon(feature){const paths=[];if(feature.geometry.type==="Polygon"){feature.geometry.coordinates.forEach(ring=>paths.push(ring.map(([lng,lat])=>new naver.maps.LatLng(lat,lng))));}else{feature.geometry.coordinates.forEach(poly=>poly.forEach(ring=>paths.push(ring.map(([lng,lat])=>new naver.maps.LatLng(lat,lng)))));}return new naver.maps.Polygon({paths,fillColor:'#FE7E33',fillOpacity:0.1,strokeColor:'#FE7E33',strokeOpacity:1,strokeWeight:2,clickable:false});}
+  function updateMarkersByPolygon(){if(!activePolygon){if(cluster)cluster.setMap(null);return;}const paths=activePolygon.getPaths().getArray().map(path=>path.getArray());const visibleMarkers=markers.filter(m=>isPointInsidePolygon(m.getPosition(),paths));if(cluster)cluster.setMap(null);cluster=new MarkerClustering({map,markers:visibleMarkers,disableClickZoom:false,gridSize:300,minClusterSize:1,maxZoom:18,icons:clusterIcons,indexGenerator:[10,100,200,500,1000],stylingFunction:(clusterMarker,count)=>{clusterMarker.getElement().querySelector('div:first-child').innerText=count;}});
   }
+  function renderRegionAtCenter(center){if(activePolygon)activePolygon.setMap(null);activePolygon=null;for(const feature of dataList){const polygon=createPolygon(feature);const paths=polygon.getPaths().getArray().map(path=>path.getArray());if(isPointInsidePolygon(center,paths)){polygon.setMap(map);activePolygon=polygon;break;}}updateMarkersByPolygon();}
   function refreshMapData(){renderRegionAtCenter(map.getCenter());}
 
-  // ✅ 중심 좌표 기반 행정코드 + 데이터 갱신
-  function updateRegionByCenter(){
-    const center=map.getCenter();
-    naver.maps.Service.reverseGeocode({
-      coords:center,
-      orders:[naver.maps.Service.OrderType.ADDR,naver.maps.Service.OrderType.ROAD_ADDR].join(',')
-    },function(status,response){
-      if(status!==naver.maps.Service.Status.OK)return;
-      const result=response.v2.results[0];if(!result)return;
+  function filterMarkersByEmdPolygon(){if(!currentEmdData||!currentEmdData.features)return[];const polygons=currentEmdData.features.map(f=>createPolygon(f).getPaths().getArray().map(path=>path.getArray()));return markerDataList.filter(m=>{const markerPos=new naver.maps.LatLng(m.lat,m.lng);return polygons.some(paths=>isPointInsidePolygon(markerPos,paths));});}
 
-      const legalCode=result.code.id;
-      const emdCode=legalCode.slice(0,2);
-      if(window["emd_"+emdCode]) currentEmdData=window["emd_"+emdCode];
-      else currentEmdData=null; // ✅ dongGeoJson 사용 제거
-
-      const zoom=map.getZoom();
-      if(zoom>14) dataList=currentEmdData?currentEmdData.features:[];
-      else if(zoom>11) dataList=sigunguGeoJson.features;
-      else dataList=[];
-
-      refreshMapData();
-    });
-  }
+  function updateRegionByCenter(){const center=map.getCenter();naver.maps.Service.reverseGeocode({coords:center,orders:[naver.maps.Service.OrderType.ADDR,naver.maps.Service.OrderType.ROAD_ADDR].join(',')},function(status,response){if(status!==naver.maps.Service.Status.OK)return;const result=response.v2.results[0];if(!result)return;const legalCode=result.code.id;const emdCode=legalCode.slice(0,2);if(window["emd_"+emdCode])currentEmdData=window["emd_"+emdCode];else currentEmdData=null;const zoom=map.getZoom();if(zoom>14)dataList=currentEmdData?currentEmdData.features:[];else if(zoom>11)dataList=sigunguGeoJson.features;else dataList=[];markers.forEach(m=>m.setMap(null));markers.length=0;let filteredMarkers=[];if(zoom>14&&currentEmdData){filteredMarkers=filterMarkersByEmdPolygon();}else{filteredMarkers=markerDataList;}filteredMarkers.forEach(v=>setMarkers(v.lat,v.lng,v.type,v.name||"건물명 없음",v.price||0,v.count));refreshMapData();});}
 
   naver.maps.Event.addListener(map,'idle',updateRegionByCenter);
-  naver.maps.Event.addListener(map,'zoom_changed',()=>{
-    updateClusterIconsByZoom();
-    updateRegionByCenter();
-  });
+  naver.maps.Event.addListener(map,'zoom_changed',()=>{updateClusterIconsByZoom();updateRegionByCenter();});
+  window.addEventListener("load",()=>{goMyLocation();updateRegionByCenter();});
 
-  window.addEventListener("load",()=>{
-    goMyLocation();
-    updateRegionByCenter();
-  });
-
-  function handleFilterChange(type){
-    const filterBtn=document.querySelectorAll(".filterBox button");
-    filterBtn.forEach((el,idx)=>el.classList.toggle("active",type===idx));
-    markerDataList=(type===0)?markerData:markerData.filter(v=>v.type===type);
-    markers.length=0;
-    markerDataList.forEach(v=>setMarkers(v.lat,v.lng,v.type,v.name||"건물명 없음",v.price||0));
-    refreshMapData();
-  }
-
-  naver.maps.Event.addListener(map,"click",()=>{
-    const mapComponent=document.getElementById("mapComponent");
-    if(!mapComponent)return;
-    mapComponent.classList.toggle("hide");
-  });
+  function goMyLocation(){if(!navigator.geolocation)return;navigator.geolocation.getCurrentPosition((pos)=>{const lat=pos.coords.latitude,lng=pos.coords.longitude;const loc=new naver.maps.LatLng(lat,lng);if(!myLocationMarker){myLocationMarker=new naver.maps.Marker({position:loc,map:map,icon:{url:"https://maps.gstatic.com/mapfiles/ms2/micons/red-dot.png",size:new naver.maps.Size(32,32),scaledSize:new naver.maps.Size(32,32)}});}else myLocationMarker.setPosition(loc);map.setCenter(loc);map.setZoom(16);updateAddress(lat,lng);},()=>{addressBox.innerText="위치 정보를 가져올 수 없습니다.";});}
+  let myLocationMarker=null;
+  function zoomIn(){map.setZoom(map.getZoom()+1);}
+  function zoomOut(){map.setZoom(map.getZoom()-1);}
+  function handleFilterChange(type){const filterBtn=document.querySelectorAll(".filterBox button");filterBtn.forEach((el,idx)=>el.classList.toggle("active",type===idx));markerDataList=(type===0)?markerData:markerData.filter(v=>v.type===type);updateRegionByCenter();}
+  naver.maps.Event.addListener(map,"click",()=>{const mapComponent=document.getElementById("mapComponent");if(!mapComponent)return;mapComponent.classList.toggle("hide");});
 </script>
 </body>
 </html>
