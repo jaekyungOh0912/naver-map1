@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>행정동 데이터 추출 (dongGeoJson 형식)</title>
+  <script src="./dongData.js"></script>
+</head>
+<body>
+<h1>행정동 데이터 추출 (dongGeoJson 형식)</h1>
+<p>행정코드 또는 동 이름으로 필터링 후 <strong>dongGeoJson</strong> 형식으로 저장됩니다.</p>
+
+<label>행정코드 시작 (예: 서울=11, 강남구=11680):</label>
+<input type="text" id="sig_cd" placeholder="예: 11">
+<br><br>
+<button id="extractBtn">추출하기</button>
+
+<script>
+  document.getElementById("extractBtn").addEventListener("click", () => {
+    const sigCdInput = document.getElementById("sig_cd").value.trim();
+
+    if (!sigCdInput) {
+      alert("행정코드 또는 동 이름 중 하나는 반드시 입력해야 합니다.");
+      return;
+    }
+
+    // 필터링
+    const filteredFeatures = dongGeoJson.features.filter((f) => {
+      return sigCdInput ? f.properties.EMD_CD.startsWith(sigCdInput) : true;
+    });
+
+    if (filteredFeatures.length === 0) {
+      alert("해당 조건의 데이터가 없습니다.");
+      return;
+    }
+
+    // dongGeoJson 형식으로 변환
+    const data = {
+      type: "FeatureCollection",
+      name: "emd",
+      crs: {
+        type: "name",
+        properties: { name: "urn:ogc:def:crs:OGC:1.3:CRS84" }
+      },
+      features: filteredFeatures
+    };
+
+    // JS 파일로 다운로드
+    const fileContent =
+      "const dongGeoJson = " +
+      JSON.stringify(data, null, 2) +
+      ";\nexport default dongGeoJson;";
+
+    const blob = new Blob([fileContent], { type: "application/javascript" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "dongGeoJson.js";
+    link.click();
+    URL.revokeObjectURL(link.href);
+
+    alert(`추출 완료 ✅ → ${filteredFeatures.length}개의 데이터가 dongGeoJson.js로 저장되었습니다.`);
+  });
+</script>
+</body>
+</html>
