@@ -98,8 +98,51 @@
     });
   }
 
-  // ✅ 주석 처리됐던 fetch 방식의 주소 검색 기능 복원
-  async function searchAddress() {
+  // ✅ 주소 검색 기능
+  function searchAddress() {
+    const query = document.getElementById("searchInput").value.trim();
+    if (!query) return alert("주소를 입력하세요.");
+    const cleanQuery = query.replace(/[^가-힣0-9a-zA-Z\s]/g, "").trim();
+
+    naver.maps.Service.geocode({ query: cleanQuery }, function (status, response) {
+      if (status !== naver.maps.Service.Status.OK) {
+        alert("검색 결과가 없습니다."); return;
+      }
+
+      const resultList = response.v2.addresses;
+      const resultBox = document.getElementById("searchResults");
+      resultBox.innerHTML = "";
+
+      if (!resultList.length) {
+        resultBox.innerHTML = "<li style='padding:4px 6px;'>검색 결과가 없습니다.</li>"; return;
+      }
+
+      resultList.forEach((addr) => {
+        const fullAddr = addr.roadAddress || addr.jibunAddress || "(주소 없음)";
+        if (!fullAddr.includes(query) && !fullAddr.replace(/\s/g, "").includes(query.replace(/\s/g, ""))) return;
+
+        const li = document.createElement("li");
+        li.innerText = fullAddr;
+        li.addEventListener("click", () => {
+          const x = parseFloat(addr.x);
+          const y = parseFloat(addr.y);
+          const newCenter = new naver.maps.LatLng(y, x);
+
+          map.setCenter(newCenter);
+          map.setZoom(16);
+          new naver.maps.Marker({ position: newCenter, map: map });
+          updateAddress(y, x);
+
+          resultBox.innerHTML = "";
+          document.getElementById("searchInput").value = "";
+        });
+        resultBox.appendChild(li);
+      });
+    });
+  }
+
+  // 프록시 서버 설정 없이는 확인 불가
+  /*async function searchAddress() {
     const query = document.getElementById("searchInput").value.trim();
     if (!query) return alert("주소를 입력하세요.");
 
@@ -157,8 +200,7 @@
       console.error(e);
       alert("오류가 발생했습니다.");
     }
-  }
-
+  }*/
 
   const infoWindow=new naver.maps.InfoWindow({borderWidth:0,disableAnchor:true,backgroundColor:"transparent",pixelOffset:new naver.maps.Point(0,-10)});
   const markers=[];
