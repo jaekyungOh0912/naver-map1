@@ -161,6 +161,70 @@
   let dataList=[]; // ✅ dongGeoJson 제거
   let currentEmdData=null;
 
+  async function searchAddress() {
+    const query = document.getElementById("searchInput").value.trim();
+    if (!query) return alert("주소를 입력하세요.");
+
+    const clientId = "n08un8adzv";       // ✅ 발급받은 값
+    const clientSecret = "898pT7rHlouyjrsqhdMr9I2q5ec9bDE5JvsdK2eF"; // ✅ 발급받은 값
+
+    // ✅ Geocoding API (주소 → 좌표)
+    const url = https://naveropenapi.apigw.ntruss.com/map-geocode/v2/geocode?query=${encodeURIComponent(query)};
+
+    try {
+      const res = await fetch(url, {
+        headers: {
+          "X-NCP-APIGW-API-KEY-ID": clientId,
+          "X-NCP-APIGW-API-KEY": clientSecret
+        }
+      });
+
+      if (!res.ok) {
+        alert("주소 검색 요청 실패");
+        return;
+      }
+
+      const data = await res.json();
+      const resultList = data.addresses;
+      const resultBox = document.getElementById("searchResults");
+      resultBox.innerHTML = "";
+
+      if (!resultList.length) {
+        resultBox.innerHTML = "<li>검색 결과가 없습니다.</li>";
+        return;
+      }
+
+      resultList.forEach((addr) => {
+        const li = document.createElement("li");
+        li.style.cursor = "pointer";
+        li.style.padding = "4px 6px";
+        li.style.borderBottom = "1px solid #ddd";
+        li.innerText = addr.roadAddress || addr.jibunAddress || "(주소 없음)";
+
+        li.addEventListener("click", () => {
+          const y = parseFloat(addr.y);
+          const x = parseFloat(addr.x);
+          const newCenter = new naver.maps.LatLng(y, x);
+
+          // ✅ 지도 중심 이동 및 마커 생성
+          map.setCenter(newCenter);
+          map.setZoom(16);
+          new naver.maps.Marker({ position: newCenter, map: map });
+
+          // ✅ 기존 updateAddress 사용 가능
+          updateAddress(y, x);
+
+          resultBox.innerHTML = "";
+        });
+
+        resultBox.appendChild(li);
+      });
+    } catch (e) {
+      console.error(e);
+      alert("오류가 발생했습니다.");
+    }
+  }
+
   function isPointInsidePolygon(point,paths){
     const x=point.lng(),y=point.lat();let inside=false;
     paths.forEach(path=>{
