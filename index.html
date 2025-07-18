@@ -176,31 +176,35 @@
   });
 
   // 마커 생성
-  function setMarkers(lat,lng,type,name,price,count){
+  function setMarkers(lat,lng,type,name,price,count,active){
     const countHTML = (count && count>0)
       ? `<div style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;background:red;color:white;font-size:11px;font-weight:bold;text-align:center;line-height:18px;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.3);">${count}</div>` : "";
-    const markerHTML = `<div style="position:relative;width:30px;height:30px;"><img src="./image/type${type}.png" style="width:30px;height:30px;"/>${countHTML}</div>`;
+    const activeHTML = (!active) ? "<div style=\"position:absolute;top:-5px;left:-5px;width:18px;height:18px;background:gray;color:white;font-size:11px;font-weight:bold;text-align:center;line-height:18px;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.3);\"></div>" : "";
+    const markerHTML = `<div style="position:relative;width:30px;height:30px;"><img src="./image/type${type}.png" style="width:30px;height:30px;"/>${countHTML}${activeHTML}</div>`;
     const marker = new naver.maps.Marker({
       position: new naver.maps.LatLng(lat,lng),
       icon:{content:markerHTML,size:new naver.maps.Size(30,30),scaledSize:new naver.maps.Size(30,30)}
     });
     // 마커 클릭 시 InfoWindow 표시
-    naver.maps.Event.addListener(marker,"click",()=>{
-      infoWindow.setContent(
-        `<div style="background:#fff;border:1px solid #ccc;border-radius:8px;padding:10px;width:150px;box-shadow:0 2px 6px rgba(0,0,0,0.2);font-size:13px;">
+    if (active) {
+      naver.maps.Event.addListener(marker,"click",()=>{
+        infoWindow.setContent(
+          `<div style="background:#fff;border:1px solid #ccc;border-radius:8px;padding:10px;width:150px;box-shadow:0 2px 6px rgba(0,0,0,0.2);font-size:13px;">
           <div style="font-weight:bold;color:#333;margin-bottom:4px;">${name}</div>
           <div style="color:#d9534f;font-weight:bold;">${price.toLocaleString()}원</div>
           <button style="margin-top:6px;width:100%;background:#007bff;color:#fff;border:none;border-radius:4px;padding:4px;cursor:pointer;">상세보기</button>
         </div>`
-      );
-      infoWindow.open(map,marker);
-    });
+        );
+        infoWindow.open(map,marker);
+      });
+    }
+
     naver.maps.Event.addListener(map,"click",()=>infoWindow.close());
     markers.push(marker);
   }
 
   function clearMarkers(){ markers.forEach(m=>m.setMap(null)); markers.length=0; }
-  function renderMarkers(list){ clearMarkers(); list.forEach(v=>setMarkers(v.lat,v.lng,v.type,v.name||"건물명 없음",v.price||0,v.count)); }
+  function renderMarkers(list){ clearMarkers(); list.forEach(v=>setMarkers(v.lat,v.lng,v.type,v.name||"건물명 없음",v.price||0,v.count,v.active)); }
 
   /* -------------------------------
      ✅ 폴리곤 및 클러스터
