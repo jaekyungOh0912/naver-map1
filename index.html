@@ -66,15 +66,29 @@
 
   const addressBox = document.getElementById("addressBox");
 
+  const loadedEmdCodes = [];
+
   /* ✅ 동적 스크립트 로딩 함수 추가 */
   function loadEmdScript(code, callback) {
-    if (window["emd_" + code]) { // 이미 로드되어 있으면 바로 실행
+    if (window["emd_" + code]) {
+      // 이미 전역 변수로 존재하는 경우 (캐싱됨)
+      if (!loadedEmdCodes.includes(code)) loadedEmdCodes.push(code);
       if (callback) callback();
       return;
     }
+
+    // 이미 시도한 적 있다면 중복 요청 방지
+    if (loadedEmdCodes.includes(code)) {
+      if (callback) callback();
+      return;
+    }
+
     const script = document.createElement("script");
     script.src = `./dongData/emd_${code}.js`;
-    script.onload = () => { if (callback) callback(); };
+    script.onload = () => {
+      loadedEmdCodes.push(code);
+      if (callback) callback();
+    };
     document.body.appendChild(script);
   }
 
@@ -229,41 +243,67 @@
   function filterMarkersByEmdPolygon(){if(!currentEmdData||!currentEmdData.features)return[];const polygons=currentEmdData.features.map(f=>createPolygon(f).getPaths().getArray().map(path=>path.getArray()));return markerDataList.filter(m=>{const markerPos=new naver.maps.LatLng(m.lat,m.lng);return polygons.some(paths=>isPointInsidePolygon(markerPos,paths));});}
 
   /* ✅ updateRegionByCenter 수정: 필요할 때만 불러오기 */
-  function updateRegionByCenter(){
-    const center=map.getCenter();
+  function updateRegionByCenter() {
+    const center = map.getCenter();
+
     naver.maps.Service.reverseGeocode({
-      coords:center,
-      orders:[naver.maps.Service.OrderType.ADDR,naver.maps.Service.OrderType.ROAD_ADDR].join(',')
-    },function(status,response){
-      if(status!==naver.maps.Service.Status.OK)return;
-      const result=response.v2.results[0];
-      if(!result)return;
+      coords: center,
+      orders: [
+        naver.maps.Service.OrderType.ADDR,
+        naver.maps.Service.OrderType.ROAD_ADDR
+      ].join(",")
+    }, function (status, response) {
+      if (status !== naver.maps.Service.Status.OK) return;
+      const result = response.v2.results[0];
+      if (!result) return;
 
-      const legalCode=result.code.id;
-      const emdCode=legalCode.slice(0,2);
+      const legalCode = result.code.id;
+      const emdCode = legalCode.slice(0, 2);
 
-      // ✅ 동적 로딩 후 나머지 로직 실행
-      loadEmdScript(emdCode, () => {
+      // ✅ 한 번이라도 불러온 경우엔 다시 불러오지 않음
+      const applyRegionUpdate = () => {
         currentEmdData = window["emd_" + emdCode] || null;
 
-        const zoom=map.getZoom();
-        if(zoom>14) dataList=currentEmdData?currentEmdData.features:[];
-        else if(zoom>11) dataList=sigunguGeoJson.features;
-        else dataList=[];
-
-        markers.forEach(m=>m.setMap(null));
-        markers.length=0;
-
-        let filteredMarkers=[];
-        if(zoom>14&&currentEmdData){
-          filteredMarkers=filterMarkersByEmdPolygon();
-        }else{
-          filteredMarkers=markerDataList;
+        const zoom = map.getZoom();
+        if (zoom > 14) {
+          dataList = currentEmdData ? currentEmdData.features : [];
+        } else if (zoom > 11) {
+          dataList = sigunguGeoJson.features;
+        } else {
+          dataList = [];
         }
 
-        filteredMarkers.forEach(v=>setMarkers(v.lat,v.lng,v.type,v.name||"건물명 없음",v.price||0,v.count));
+        // ✅ 기존 마커 초기화 후 다시 렌더링
+        markers.forEach((m) => m.setMap(null));
+        markers.length = 0;
+
+        let filteredMarkers = [];
+        if (zoom > 14 && currentEmdData) {
+          filteredMarkers = filterMarkersByEmdPolygon();
+        } else {
+          filteredMarkers = markerDataList;
+        }
+
+        filteredMarkers.forEach((v) =>
+          setMarkers(
+            v.lat,
+            v.lng,
+            v.type,
+            v.name || "건물명 없음",
+            v.price || 0,
+            v.count
+          )
+        );
         refreshMapData();
-      });
+      };
+
+      if (window["emd_" + emdCode]) {
+        // 이미 로드된 데이터 사용
+        applyRegionUpdate();
+      } else {
+        // 처음 로드하는 경우만 동적 로딩
+        loadEmdScript(emdCode, applyRegionUpdate);
+      }
     });
   }
 
