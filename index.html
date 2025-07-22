@@ -13,6 +13,7 @@
     /* 기본 레이아웃 및 UI 스타일 */
     body { margin: 0; padding: 0; }
     button { outline: none; cursor: pointer; }
+    p { margin: 0; }
     .searchBox { width:100%;height:70px;background:#E5EDF8;position:fixed;top:0;left:0;z-index:999; }
     .searchBox .searchInputBox { width:calc(100% - 20px);max-width:340px;height:50px;background:#fff;margin:8px auto 0;display:flex;overflow:hidden; }
     .searchBox .searchInputBox input { width:calc(100% - 55px);height:50px;padding:0 5px;border:none;box-sizing:border-box; }
@@ -33,6 +34,13 @@
     #mapComponent.hide .filterBox,
     #mapComponent.hide .controlBox,
     #mapComponent.hide .addressBox { display:none; }
+
+    /* 마커 */
+    .marker { width: 30px; height: 30px; position: relative; }
+    .marker img { width: 30px; height: 30px; }
+    .marker .count { width: 18px; height: 18px; position: absolute; top: -5px; right: -10px; background-color: red; color: white; font-size: 11px; line-height: 18px; text-align: center; border-radius: 50%; }
+    .marker .count.deActive { background-color: gray;}
+    .marker .textBox { width: 80px; height: 40px; position: absolute; padding: 0 3px; bottom: -40px; right: -25px; background-color: white; font-size: 13px; border-radius: 6px;}
   </style>
 </head>
 <body>
@@ -177,27 +185,28 @@
 
   // 마커 생성
   function setMarkers(lat,lng,type,name,price,count,active){
+    const priceText = price / 100000000;
+
     const countHTML = (count && count>0)
-      ? `<div style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;background:red;color:white;font-size:11px;font-weight:bold;text-align:center;line-height:18px;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.3);">${count}</div>` : "";
-    const activeHTML = (!active) ? "<div style=\"position:absolute;top:-5px;left:-5px;width:18px;height:18px;background:gray;color:white;font-size:11px;font-weight:bold;text-align:center;line-height:18px;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.3);\"></div>" : "";
-    const markerHTML = `<div style="position:relative;width:30px;height:30px;"><img src="./image/type${type}.png" style="width:30px;height:30px;"/>${countHTML}${activeHTML}</div>`;
+      ? `<div class="count ${active ? '' : 'deActive'}">${count}</div>` : "";
+    const textHTML = `<div class="textBox"><p>${name}</p><p>${active ? `${priceText.toFixed(2)}억원` : ""}</p></div>`
+    const markerHTML = `<div class="marker"><img src="./image/type${type}.png""/>${countHTML}${textHTML}</div>`;
+
     const marker = new naver.maps.Marker({
       position: new naver.maps.LatLng(lat,lng),
       icon:{content:markerHTML,size:new naver.maps.Size(30,30),scaledSize:new naver.maps.Size(30,30)}
     });
     // 마커 클릭 시 InfoWindow 표시
-    if (active) {
-      naver.maps.Event.addListener(marker,"click",()=>{
-        infoWindow.setContent(
-          `<div style="background:#fff;border:1px solid #ccc;border-radius:8px;padding:10px;width:150px;box-shadow:0 2px 6px rgba(0,0,0,0.2);font-size:13px;">
+    naver.maps.Event.addListener(marker,"click",()=>{
+      infoWindow.setContent(
+        `<div style="background:#fff;border:1px solid #ccc;border-radius:8px;padding:10px;width:150px;box-shadow:0 2px 6px rgba(0,0,0,0.2);font-size:13px;">
           <div style="font-weight:bold;color:#333;margin-bottom:4px;">${name}</div>
-          <div style="color:#d9534f;font-weight:bold;">${price.toLocaleString()}원</div>
+          <div style="color:#d9534f;font-weight:bold;">${active ? `${priceText.toFixed(2)}억원` : "시세 공개 대상 아님"}</div>
           <button style="margin-top:6px;width:100%;background:#007bff;color:#fff;border:none;border-radius:4px;padding:4px;cursor:pointer;">상세보기</button>
         </div>`
-        );
-        infoWindow.open(map,marker);
-      });
-    }
+      );
+      infoWindow.open(map,marker);
+    });
 
     naver.maps.Event.addListener(map,"click",()=>infoWindow.close());
     markers.push(marker);
