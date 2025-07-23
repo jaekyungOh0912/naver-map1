@@ -3,41 +3,53 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>지도 테스트</title>
-  <!-- ✅ defer 추가 -->
-  <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=n08un8adzv&submodules=geocoder" defer></script>
-  <script src="./MarkerClustering.js" defer></script>
-  <script src="./markerData.js" defer></script>
-  <script src="./sigunguData.js" defer></script>
+  <title>지도 테스트 (최적화)</title>
+  <link rel="preconnect" href="https://oapi.map.naver.com">
   <style>
-    body { margin: 0; padding: 0; }
-    #map { width:100dvw; height:100dvh; min-width: 280px; min-height: 400px; }
+    body { margin:0; padding:0; }
     /* ✅ Skeleton UI */
     #mapPlaceholder {
-      width: 100dvw;
-      height: 100dvh;
-      min-width: 280px;
-      min-height: 400px;
-      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-      background-size: 200% 100%;
-      animation: shimmer 1.5s infinite;
+      width:100dvw; height:100dvh; min-width:280px; min-height:400px;
+      background:linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size:200% 100%;
+      animation:shimmer 1.5s infinite;
     }
     @keyframes shimmer {
-      0% { background-position: -200% 0; }
-      100% { background-position: 200% 0; }
+      0% { background-position:-200% 0; }
+      100% { background-position:200% 0; }
+    }
+    #map {
+      width:100dvw; height:100dvh; min-width:280px; min-height:400px;
+      display:none;
     }
   </style>
 </head>
 <body>
-<!-- ✅ 로딩 중에는 Skeleton UI 먼저 표시 -->
 <div id="mapPlaceholder"></div>
-<div id="map" style="display:none;"></div>
+<div id="map"></div>
 
 <script>
-  document.addEventListener("DOMContentLoaded", () => {
-    /* -------------------------------
-       ✅ 전역 변수
-    --------------------------------*/
+  /* ✅ Lazy Loading 시작 */
+  const mapDiv = document.getElementById("map");
+  const placeholder = document.getElementById("mapPlaceholder");
+
+  const observer = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting) {
+      observer.disconnect();
+      loadNaverMap();
+    }
+  });
+  observer.observe(mapDiv);
+
+  function loadNaverMap() {
+    const script = document.createElement("script");
+    script.src = "https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=n08un8adzv&submodules=geocoder";
+    script.defer = true;
+    script.onload = initMap;
+    document.body.appendChild(script);
+  }
+
+  function initMap() {
     const map = new naver.maps.Map('map', {
       center: new naver.maps.LatLng(35.144, 129.060),
       zoom: 16, minZoom:7, maxZoom:19
@@ -49,8 +61,35 @@
     let currentEmdData = null;
     let dataList = [];
 
+    /* ✅ Skeleton 제거 후 지도 표시 */
+    naver.maps.Event.addListener(map, "tilesloaded", () => {
+      placeholder.style.display = "none";
+      mapDiv.style.display = "block";
+      // ✅ 지도 완전히 표시 후 1초 뒤부터 데이터 로딩 시작
+      setTimeout(() => {
+        lazyLoadData(() => updateRegionByCenter(map));
+      }, 1000);
+    });
+
     /* -------------------------------
-       ✅ 동적 행정동 데이터 로드
+       ✅ 동적 데이터 Lazy Loading
+    --------------------------------*/
+    function lazyLoadData(callback) {
+      const scripts = ["./markerData.js", "./sigunguData.js"];
+      let loaded = 0;
+      scripts.forEach(src => {
+        const s = document.createElement("script");
+        s.src = src;
+        s.onload = () => {
+          loaded++;
+          if (loaded === scripts.length) callback();
+        };
+        document.body.appendChild(s);
+      });
+    }
+
+    /* -------------------------------
+       ✅ 행정동 데이터 동적 로딩
     --------------------------------*/
     function loadEmdScript(code, callback) {
       if (window["emd_" + code]) {
@@ -71,6 +110,9 @@
       document.body.appendChild(script);
     }
 
+    /* -------------------------------
+       ✅ 폴리곤 관련 함수
+    --------------------------------*/
     function createPolygon(feature) {
       const key = feature.properties.EMD_CD || JSON.stringify(feature.geometry);
       if (polygonCache[key]) return polygonCache[key];
@@ -90,12 +132,12 @@
 
       const polygon = new naver.maps.Polygon({
         paths,
-        fillColor: '#FE7E33',
-        fillOpacity: 0.1,
-        strokeColor: '#FE7E33',
-        strokeOpacity: 1,
-        strokeWeight: 2,
-        clickable: false
+        fillColor:'#FE7E33',
+        fillOpacity:0.1,
+        strokeColor:'#FE7E33',
+        strokeOpacity:1,
+        strokeWeight:2,
+        clickable:false
       });
 
       polygonCache[key] = polygon;
@@ -132,6 +174,9 @@
       }
     }
 
+    /* -------------------------------
+       ✅ 지도 중심 변경 시 행정동 데이터 갱신
+    --------------------------------*/
     function applyRegionUpdate(emdCode) {
       currentEmdData = window["emd_" + emdCode] || null;
       const zoom = map.getZoom();
@@ -152,7 +197,7 @@
         const center = map.getCenter();
         naver.maps.Service.reverseGeocode({
           coords: center,
-          orders: [naver.maps.Service.OrderType.ADDR, naver.maps.Service.OrderType.ROAD_ADDR].join(',')
+          orders: [naver.maps.Service.OrderType.ADDR].join(',')
         }, (status, response) => {
           if (status !== naver.maps.Service.Status.OK) return;
           const result = response.v2.results[0];
@@ -168,16 +213,7 @@
     }
 
     naver.maps.Event.addListener(map, 'idle', updateRegionByCenter);
-
-    // ✅ tilesloaded 이벤트로 지도 완전히 로드 후 Skeleton 제거
-    naver.maps.Event.addListener(map, 'tilesloaded', () => {
-      document.getElementById("mapPlaceholder").style.display = "none";
-      document.getElementById("map").style.display = "block";
-    });
-
-    // 초기 실행
-    updateRegionByCenter();
-  });
+  }
 </script>
 </body>
 </html>
