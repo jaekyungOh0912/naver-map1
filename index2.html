@@ -3,216 +3,187 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>지도 테스트 (최적화)</title>
-  <link rel="preconnect" href="https://oapi.map.naver.com">
+  <title>지도 테스트</title>
+
+  <!-- 네이버 지도와 데이터 -->
+  <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=n08un8adzv&submodules=geocoder" defer></script>
+  <script src="./MarkerClustering.js" defer></script>
+  <script src="./markerData.js" defer></script>
+  <script src="./sigunguData.js" defer></script>
+
   <style>
-    body { margin:0; padding:0; }
-    /* ✅ Skeleton UI */
-    #mapPlaceholder {
-      width:100dvw; height:100dvh; min-width:280px; min-height:400px;
-      background:linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-      background-size:200% 100%;
-      animation:shimmer 1.5s infinite;
-    }
-    @keyframes shimmer {
-      0% { background-position:-200% 0; }
-      100% { background-position:200% 0; }
-    }
-    #map {
-      width:100dvw; height:100dvh; min-width:280px; min-height:400px;
-      display:none;
-    }
+    body { margin: 0; padding: 0; }
+    #map { width:100dvw; height:100dvh; min-width:280px; min-height:400px; }
   </style>
 </head>
 <body>
-<div id="mapPlaceholder"></div>
 <div id="map"></div>
 
 <script>
-  /* ✅ Lazy Loading 시작 */
-  const mapDiv = document.getElementById("map");
-  const placeholder = document.getElementById("mapPlaceholder");
+  /* -------------------------------
+     전역 변수
+  --------------------------------*/
+  let map = null;               // 지도 객체(초기 null로 선언)
+  const loadedEmdCodes = [];    // 로드된 행정동 코드
+  const polygonCache = {};      // 폴리곤 캐싱
+  let activePolygon = null;     // 현재 활성화된 폴리곤
+  let currentEmdData = null;    // 현재 행정동 데이터
+  let dataList = [];            // 현재 화면에 표시할 데이터
+  let regionUpdateTimer = null; // 디바운스용 타이머
 
-  const observer = new IntersectionObserver((entries) => {
-    if (entries[0].isIntersecting) {
-      observer.disconnect();
-      loadNaverMap();
-    }
+  /* -------------------------------
+     DOMContentLoaded 이후 지도 초기화
+  --------------------------------*/
+  document.addEventListener("DOMContentLoaded", () => {
+    // 네이버 지도 객체 초기화
+    map = new naver.maps.Map('map', {
+      center: new naver.maps.LatLng(35.144, 129.060),
+      zoom: 16,
+      minZoom: 7,
+      maxZoom: 19
+    });
+
+    // 지도 이벤트 등록
+    naver.maps.Event.addListener(map, 'idle', updateRegionByCenter);
+
+    // 초기 한 번 실행
+    updateRegionByCenter();
   });
-  observer.observe(mapDiv);
 
-  function loadNaverMap() {
+  /* -------------------------------
+     동적 행정동 데이터 로드
+  --------------------------------*/
+  function loadEmdScript(code, callback) {
+    if (window["emd_" + code]) {
+      if (!loadedEmdCodes.includes(code)) loadedEmdCodes.push(code);
+      callback && callback();
+      return;
+    }
+    if (loadedEmdCodes.includes(code)) {
+      callback && callback();
+      return;
+    }
     const script = document.createElement("script");
-    script.src = "https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=n08un8adzv&submodules=geocoder";
-    script.defer = true;
-    script.onload = initMap;
+    script.src = `./dongData/emd_${code}.js`;
+    script.onload = () => {
+      loadedEmdCodes.push(code);
+      callback && callback();
+    };
     document.body.appendChild(script);
   }
 
-  function initMap() {
-    const map = new naver.maps.Map('map', {
-      center: new naver.maps.LatLng(35.144, 129.060),
-      zoom: 16, minZoom:7, maxZoom:19
-    });
+  /* -------------------------------
+     폴리곤 생성 함수
+  --------------------------------*/
+  function createPolygon(feature) {
+    const key = feature.properties.EMD_CD || JSON.stringify(feature.geometry);
+    if (polygonCache[key]) return polygonCache[key];
 
-    const loadedEmdCodes = [];
-    const polygonCache = {};
-    let activePolygon = null;
-    let currentEmdData = null;
-    let dataList = [];
+    const paths = [];
 
-    /* ✅ Skeleton 제거 후 지도 표시 */
-    naver.maps.Event.addListener(map, "tilesloaded", () => {
-      placeholder.style.display = "none";
-      mapDiv.style.display = "block";
-      // ✅ 지도 완전히 표시 후 1초 뒤부터 데이터 로딩 시작
-      setTimeout(() => {
-        lazyLoadData(() => updateRegionByCenter(map));
-      }, 1000);
-    });
-
-    /* -------------------------------
-       ✅ 동적 데이터 Lazy Loading
-    --------------------------------*/
-    function lazyLoadData(callback) {
-      const scripts = ["./markerData.js", "./sigunguData.js"];
-      let loaded = 0;
-      scripts.forEach(src => {
-        const s = document.createElement("script");
-        s.src = src;
-        s.onload = () => {
-          loaded++;
-          if (loaded === scripts.length) callback();
-        };
-        document.body.appendChild(s);
-      });
-    }
-
-    /* -------------------------------
-       ✅ 행정동 데이터 동적 로딩
-    --------------------------------*/
-    function loadEmdScript(code, callback) {
-      if (window["emd_" + code]) {
-        if (!loadedEmdCodes.includes(code)) loadedEmdCodes.push(code);
-        callback && callback();
-        return;
-      }
-      if (loadedEmdCodes.includes(code)) {
-        callback && callback();
-        return;
-      }
-      const script = document.createElement("script");
-      script.src = `./dongData/emd_${code}.js`;
-      script.onload = () => {
-        loadedEmdCodes.push(code);
-        callback && callback();
-      };
-      document.body.appendChild(script);
-    }
-
-    /* -------------------------------
-       ✅ 폴리곤 관련 함수
-    --------------------------------*/
-    function createPolygon(feature) {
-      const key = feature.properties.EMD_CD || JSON.stringify(feature.geometry);
-      if (polygonCache[key]) return polygonCache[key];
-
-      const paths = [];
-      if (feature.geometry.type === "Polygon") {
-        feature.geometry.coordinates.forEach(ring =>
+    if (feature.geometry.type === "Polygon") {
+      feature.geometry.coordinates.forEach(ring =>
+        paths.push(ring.map(([lng, lat]) => new naver.maps.LatLng(lat, lng)))
+      );
+    } else {
+      feature.geometry.coordinates.forEach(poly =>
+        poly.forEach(ring =>
           paths.push(ring.map(([lng, lat]) => new naver.maps.LatLng(lat, lng)))
-        );
-      } else {
-        feature.geometry.coordinates.forEach(poly =>
-          poly.forEach(ring =>
-            paths.push(ring.map(([lng, lat]) => new naver.maps.LatLng(lat, lng)))
-          )
-        );
-      }
-
-      const polygon = new naver.maps.Polygon({
-        paths,
-        fillColor:'#FE7E33',
-        fillOpacity:0.1,
-        strokeColor:'#FE7E33',
-        strokeOpacity:1,
-        strokeWeight:2,
-        clickable:false
-      });
-
-      polygonCache[key] = polygon;
-      return polygon;
+        )
+      );
     }
 
-    function isPointInsidePolygon(point, paths) {
-      const x = point.lng(), y = point.lat();
-      let inside = false;
-      paths.forEach(path => {
-        for (let i = 0, j = path.length - 1; i < path.length; j = i++) {
-          const xi = path[i].lng(), yi = path[i].lat();
-          const xj = path[j].lng(), yj = path[j].lat();
-          const intersect = ((yi > y) !== (yj > y)) &&
-            (x < (xj - xi) * (y - yi) / ((yj - yi) || 1e-10) + xi);
-          if (intersect) inside = !inside;
+    const polygon = new naver.maps.Polygon({
+      paths,
+      fillColor: '#FE7E33',
+      fillOpacity: 0.1,
+      strokeColor: '#FE7E33',
+      strokeOpacity: 1,
+      strokeWeight: 2,
+      clickable: false
+    });
+
+    polygonCache[key] = polygon;
+    return polygon;
+  }
+
+  /* -------------------------------
+     좌표가 폴리곤 내부에 포함되는지 검사
+  --------------------------------*/
+  function isPointInsidePolygon(point, paths) {
+    const x = point.lng();
+    const y = point.lat();
+    let inside = false;
+
+    paths.forEach(path => {
+      for (let i = 0, j = path.length - 1; i < path.length; j = i++) {
+        const xi = path[i].lng(), yi = path[i].lat();
+        const xj = path[j].lng(), yj = path[j].lat();
+        const intersect = ((yi > y) !== (yj > y)) &&
+          (x < (xj - xi) * (y - yi) / ((yj - yi) || 1e-10) + xi);
+        if (intersect) inside = !inside;
+      }
+    });
+
+    return inside;
+  }
+
+  /* -------------------------------
+     지도 중심 기준 폴리곤 렌더링
+  --------------------------------*/
+  function renderRegionAtCenter(center) {
+    if (activePolygon) activePolygon.setMap(null);
+    activePolygon = null;
+
+    for (const feature of dataList) {
+      const polygon = createPolygon(feature);
+      const paths = polygon.getPaths().getArray().map(path => path.getArray());
+      if (isPointInsidePolygon(center, paths)) {
+        polygon.setMap(map);
+        activePolygon = polygon;
+        break;
+      }
+    }
+  }
+
+  /* -------------------------------
+     행정동 데이터 갱신
+  --------------------------------*/
+  function applyRegionUpdate(emdCode) {
+    currentEmdData = window["emd_" + emdCode] || null;
+    const zoom = map.getZoom();
+    if (zoom > 14) {
+      dataList = currentEmdData ? currentEmdData.features : [];
+    } else if (zoom > 11) {
+      dataList = sigunguGeoJson.features;
+    } else {
+      dataList = [];
+    }
+    renderRegionAtCenter(map.getCenter());
+  }
+
+  /* -------------------------------
+     지도 중심 변경 시 데이터 갱신 (디바운스 적용)
+  --------------------------------*/
+  function updateRegionByCenter() {
+    clearTimeout(regionUpdateTimer);
+    regionUpdateTimer = setTimeout(() => {
+      const center = map.getCenter();
+      naver.maps.Service.reverseGeocode({
+        coords: center,
+        orders: [naver.maps.Service.OrderType.ADDR, naver.maps.Service.OrderType.ROAD_ADDR].join(',')
+      }, (status, response) => {
+        if (status !== naver.maps.Service.Status.OK) return;
+        const result = response.v2.results[0];
+        if (!result) return;
+        const emdCode = result.code.id.slice(0, 2);
+        if (window["emd_" + emdCode]) {
+          applyRegionUpdate(emdCode);
+        } else {
+          loadEmdScript(emdCode, () => applyRegionUpdate(emdCode));
         }
       });
-      return inside;
-    }
-
-    function renderRegionAtCenter(center) {
-      if (activePolygon) activePolygon.setMap(null);
-      activePolygon = null;
-
-      for (const feature of dataList) {
-        const polygon = createPolygon(feature);
-        const paths = polygon.getPaths().getArray().map(path => path.getArray());
-        if (isPointInsidePolygon(center, paths)) {
-          polygon.setMap(map);
-          activePolygon = polygon;
-          break;
-        }
-      }
-    }
-
-    /* -------------------------------
-       ✅ 지도 중심 변경 시 행정동 데이터 갱신
-    --------------------------------*/
-    function applyRegionUpdate(emdCode) {
-      currentEmdData = window["emd_" + emdCode] || null;
-      const zoom = map.getZoom();
-      if (zoom > 14) {
-        dataList = currentEmdData ? currentEmdData.features : [];
-      } else if (zoom > 11) {
-        dataList = sigunguGeoJson.features;
-      } else {
-        dataList = [];
-      }
-      renderRegionAtCenter(map.getCenter());
-    }
-
-    let regionUpdateTimer = null;
-    function updateRegionByCenter() {
-      clearTimeout(regionUpdateTimer);
-      regionUpdateTimer = setTimeout(() => {
-        const center = map.getCenter();
-        naver.maps.Service.reverseGeocode({
-          coords: center,
-          orders: [naver.maps.Service.OrderType.ADDR].join(',')
-        }, (status, response) => {
-          if (status !== naver.maps.Service.Status.OK) return;
-          const result = response.v2.results[0];
-          if (!result) return;
-          const emdCode = result.code.id.slice(0, 2);
-          if (window["emd_" + emdCode]) {
-            applyRegionUpdate(emdCode);
-          } else {
-            loadEmdScript(emdCode, () => applyRegionUpdate(emdCode));
-          }
-        });
-      }, 300);
-    }
-
-    naver.maps.Event.addListener(map, 'idle', updateRegionByCenter);
+    }, 300);
   }
 </script>
 </body>
