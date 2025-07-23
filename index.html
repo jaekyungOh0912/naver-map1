@@ -272,7 +272,11 @@
   }
 
   function updateMarkersByPolygon(){
-    if(!activePolygon){ if(cluster) cluster.setMap(null); return; }
+    if(!activePolygon){
+      if(cluster) cluster.setMap(null);
+      return;
+    }
+
     const paths=activePolygon.getPaths().getArray().map(path=>path.getArray());
     const visibleMarkers=markers.filter(m=>isPointInsidePolygon(m.getPosition(),paths));
     if(cluster) cluster.setMap(null);

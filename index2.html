@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>지도 최적화</title>
+
+  <!-- 네이버 모듈 -->
+  <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=n08un8adzv&submodules=geocoder"></script>
+  <script src="./MarkerClustering.js"></script>
+
+  <style>
+    /* 기본 레이아웃 및 UI 스타일 */
+    body { margin: 0; padding: 0; }
+    #map { width:100dvw; height:100dvh; }
+  </style>
+</head>
+<body>
+<!-- 지도영역 -->
+<div id="map"></div>
+</body>
+
+<script>
+  const map = new naver.maps.Map('map', { // 지도 초기화
+    center: new naver.maps.LatLng(35.144, 129.060),
+    zoom: 16, minZoom:7, maxZoom:19
+  });
+</script>
+
+</html>
