@@ -230,8 +230,13 @@
     }
 
     const polygon = new naver.maps.Polygon({
-      paths, fillColor:'#FE7E33', fillOpacity:0.1, strokeColor:'#FE7E33',
-      strokeOpacity:1, strokeWeight:2, clickable:false
+      paths,
+      fillColor:'#FE7E33',
+      fillOpacity:0.1,
+      strokeColor:'#FE7E33',
+      strokeOpacity:1,
+      strokeWeight:2,
+      clickable:false
     });
     polygon.bounds = getPathsBounds(paths);
     polygonCache[key] = polygon;
@@ -239,18 +244,9 @@
   }
 
   function getPathsBounds(paths){
-    let swLat=90, swLng=180, neLat=-90, neLng=-180;
-    paths.forEach(path=>{
-      path.forEach(p=>{
-        const lat=p.lat(), lng=p.lng();
-        if(lat<swLat) swLat=lat;
-        if(lat>neLat) neLat=lat;
-        if(lng<swLng) swLng=lng;
-        if(lng>neLng) neLng=lng;
-      });
-    });
-    return new naver.maps.LatLngBounds(new naver.maps.LatLng(swLat,swLng),
-                                       new naver.maps.LatLng(neLat,neLng));
+    const bounds = new naver.maps.LatLngBounds();
+    paths.forEach(path => path.forEach(p => bounds.extend(p)));
+    return bounds;
   }
 
   function isPointInsidePolygon(point,paths){
