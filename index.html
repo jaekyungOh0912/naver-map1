@@ -233,8 +233,24 @@
       paths, fillColor:'#FE7E33', fillOpacity:0.1, strokeColor:'#FE7E33',
       strokeOpacity:1, strokeWeight:2, clickable:false
     });
+    polygon.bounds = getPathsBounds(paths);
     polygonCache[key] = polygon;
     return polygon;
+  }
+
+  function getPathsBounds(paths){
+    let swLat=90, swLng=180, neLat=-90, neLng=-180;
+    paths.forEach(path=>{
+      path.forEach(p=>{
+        const lat=p.lat(), lng=p.lng();
+        if(lat<swLat) swLat=lat;
+        if(lat>neLat) neLat=lat;
+        if(lng<swLng) swLng=lng;
+        if(lng>neLng) neLng=lng;
+      });
+    });
+    return new naver.maps.LatLngBounds(new naver.maps.LatLng(swLat,swLng),
+                                       new naver.maps.LatLng(neLat,neLng));
   }
 
   function isPointInsidePolygon(point,paths){
@@ -251,10 +267,20 @@
 
   function filterMarkersByEmdPolygon(){
     if(!currentEmdData||!currentEmdData.features) return [];
-    const polygons = currentEmdData.features.map(f=>createPolygon(f).getPaths().getArray().map(path=>path.getArray()));
+    const polygonList = currentEmdData.features.map(f=>createPolygon(f));
+    const polygons = polygonList.map(p=>p.getPaths().getArray().map(path=>path.getArray()));
+    const boundsList = polygonList.map(p=>p.bounds);
+    const mapBounds = map.getBounds();
+
     return markerDataList.filter(m=>{
       const markerPos=new naver.maps.LatLng(m.lat,m.lng);
-      return polygons.some(paths=>isPointInsidePolygon(markerPos,paths));
+      if(!mapBounds.hasLatLng(markerPos)) return false;
+      let inside=false;
+      for(let i=0;i<polygons.length;i++){
+        if(!boundsList[i].hasLatLng(markerPos)) continue;
+        if(isPointInsidePolygon(markerPos,polygons[i])){ inside=true; break; }
+      }
+      return inside;
     });
   }
 
