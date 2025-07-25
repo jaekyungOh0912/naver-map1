@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+
+<div id="captureArea">
+  <h1>이 부분이 PDF로 저장됩니다</h1>
+  <p>내용을 자유롭게 넣으세요.</p>
+</div>
+
+<button onclick="saveAsPDF()">PDF 저장</button>
+
+<script>
+  function saveAsPDF() {
+    const element = document.getElementById('captureArea');
+    html2pdf().set({
+      margin: 10,
+      filename: 'saved-page.pdf',
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    }).from(element).save();
+  }
+</script>
+</body>
+</html>
