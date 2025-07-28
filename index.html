@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>지도 테스트</title>
   <!-- 네이버 지도, 클러스터링, 데이터 -->
   <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=n08un8adzv&submodules=geocoder"></script>
@@ -43,7 +43,7 @@
     .marker .textBox { width: 80px; height: 40px; position: absolute; padding: 0 3px; bottom: -40px; right: -25px; background-color: white; font-size: 13px; border-radius: 6px;}
 
     /* infoBox */
-    .infoBox { position: fixed; bottom: -60dvh; left: 0; width: 100dvw; height: 60dvh; background-color: #FFF; z-index: 100; transition: bottom 0.3s ease-in-out;}
+    .infoBox { position: fixed; bottom: -55dvh; left: 0; width: 100dvw; height: 55dvh; background-color: #FFF; z-index: 100; transition: bottom 0.3s ease-in-out;}
     .infoBox.show {bottom: 0;}
     .infoBox .infoHead p {padding: 5px; font-weight: 600;}
     .infoBox .infoHead ul {
