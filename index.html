@@ -41,6 +41,69 @@
     .marker .count { width: 18px; height: 18px; position: absolute; top: -5px; right: -10px; background-color: red; color: white; font-size: 11px; line-height: 18px; text-align: center; border-radius: 50%; }
     .marker .count.deActive { background-color: gray;}
     .marker .textBox { width: 80px; height: 40px; position: absolute; padding: 0 3px; bottom: -40px; right: -25px; background-color: white; font-size: 13px; border-radius: 6px;}
+
+    /* infoBox */
+    .infoBox { position: fixed; bottom: -60dvh; left: 0; width: 100dvw; height: 60dvh; background-color: #FFF; z-index: 100; transition: bottom 0.3s ease-in-out;}
+    .infoBox.show {bottom: 0;}
+    .infoBox .infoHead p {padding: 5px; font-weight: 600;}
+    .infoBox .infoHead ul {
+      display: flex;
+      align-items: center;
+      justify-content: center;  /* 가운데 정렬 */
+      margin: 0;
+      padding: 0;
+      border-top: 1px solid #333;
+      border-bottom: 1px solid #333;
+    }
+
+    .infoBox .infoHead ul li {
+      list-style: none;
+      width: 20%;
+      text-align: center;
+      padding: 5px 0;
+      color: #666;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .infoBox .infoHead ul li.active {
+      color: #008000; font-weight: 600;
+    }
+
+    .infoBox .infoHead ul li:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      height: 10px;
+      border-right: 1px solid #333;
+    }
+
+    .infoBox .infoBody {
+      height: calc(100% - 67px);
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    .infoBox .infoBody .infoContentBox {
+      padding: 8px 0;
+      margin: 0 5px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .infoBox .infoBody .infoContentBox:not(:last-child) {
+      border-bottom: 1px solid #333;
+    }
+    .infoBox .infoBody .infoContentBox p {
+      font-size: 14px;
+      color: #666666;
+    }
+    .infoBox .infoBody .infoContentBox p:nth-child(1) {
+      font-weight: 700;
+      color: #333;
+      font-size: 16px;
+    }
   </style>
 </head>
 <body>
@@ -73,6 +136,40 @@
     <button onclick="goMyLocation()">📍</button>
     <button onclick="zoomIn()">＋</button>
     <button onclick="zoomOut()">－</button>
+  </div>
+
+  <!-- 정보 레이어 영역 -->
+  <div class="infoBox">
+    <div class="infoHead">
+      <p>총 <span class="count">7</span>개의 단지가 있습니다</p>
+      <ul>
+        <li class="active" onclick="handelSortFilter(event, 1)">인기순</li>
+        <li onclick="handelSortFilter(event, 2)">가나다순</li>
+        <li onclick="handelSortFilter(event, 3)">세대수순</li>
+        <li onclick="handelSortFilter(event, 4)">최근입주순</li>
+        <li onclick="handelSortFilter(event, 5)">매물수순</li>
+      </ul>
+    </div>
+    <div class="infoBody">
+      <div class="infoContentBox">
+        <p>서면동일파크스위트3차</p>
+        <p>매매 3억 4,500 ~ 7억 1,000</p>
+        <p>아파트·727세대·총9동·2017.06.30.</p>
+        <p>53.85㎡ ~ 144.84㎡</p>
+      </div>
+      <div class="infoContentBox">
+        <p>서면동일파크스위트3차</p>
+        <p>매매 3억 4,500 ~ 7억 1,000</p>
+        <p>아파트·727세대·총9동·2017.06.30.</p>
+        <p>53.85㎡ ~ 144.84㎡</p>
+      </div>
+      <div class="infoContentBox">
+        <p>서면동일파크스위트3차</p>
+        <p>매매 3억 4,500 ~ 7억 1,000</p>
+        <p>아파트·727세대·총9동·2017.06.30.</p>
+        <p>53.85㎡ ~ 144.84㎡</p>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -198,22 +295,89 @@
     });
     // 마커 클릭 시 InfoWindow 표시
     naver.maps.Event.addListener(marker,"click",()=>{
-      infoWindow.setContent(
-        `<div style="background:#fff;border:1px solid #ccc;border-radius:8px;padding:10px;width:150px;box-shadow:0 2px 6px rgba(0,0,0,0.2);font-size:13px;">
-          <div style="font-weight:bold;color:#333;margin-bottom:4px;">${name}</div>
-          <div style="color:#d9534f;font-weight:bold;">${active ? `${priceText.toFixed(2)}억원` : "시세 공개 대상 아님"}</div>
-          <button style="margin-top:6px;width:100%;background:#007bff;color:#fff;border:none;border-radius:4px;padding:4px;cursor:pointer;">상세보기</button>
-        </div>`
-      );
-      infoWindow.open(map,marker);
+      const infoBox = document.querySelector(".infoBox");
+      const sortedData = [...complexList].sort((a, b) => b.popularity - a.popularity);
+
+      infoBox.querySelector(".count").innerText = sortedData.length;
+      setInfoContent(sortedData);
+      infoBox.classList.add("show");
     });
 
     naver.maps.Event.addListener(map,"click",()=>infoWindow.close());
     markers.push(marker);
   }
 
+  function setInfoContent(sortedData) {
+    const infoBody = document.querySelector(".infoBody");
+    infoBody.innerHTML = "";
+
+    sortedData.forEach(value => {
+      const box = document.createElement("div");
+      box.className = "infoContentBox";
+
+      box.innerHTML = `
+        <p>${value.name}</p>
+        <p>${value.price}</p>
+        <p>${value.info}</p>
+        <p>${value.size}</p>
+      `;
+
+      infoBody.appendChild(box);
+    });
+  }
+
   function clearMarkers(){ markers.forEach(m=>m.setMap(null)); markers.length=0; }
   function renderMarkers(list){ clearMarkers(); list.forEach(v=>setMarkers(v.lat,v.lng,v.type,v.name||"건물명 없음",v.price||0,v.count,v.active)); }
+
+  // infoBox 외부 클릭 시 .show 제거
+  document.addEventListener("click", (e) => {
+    const infoBox = document.querySelector(".infoBox");
+
+    if (!infoBox) return;
+
+    // infoBox 내부를 클릭한 경우 무시
+    if (infoBox.contains(e.target)) return;
+
+    // 마커를 클릭할 경우 무시
+    if (e.target.closest(".marker")) return;
+
+    // 그 외 영역 클릭 시 .show 제거
+    infoBox.classList.remove("show");
+  });
+
+  // 정보 박스 순서 정렬(정렬기능은 아직 미정)
+  const handelSortFilter = (e, type) => {
+    const sortFilter = document.querySelectorAll(".infoHead li");
+    sortFilter.forEach((element) => {
+      element.classList.remove("active");
+    });
+
+    const sortedData = [...complexList];
+
+    switch (type) {
+      case 1: // 인기순
+        sortedData.sort((a, b) => b.popularity - a.popularity);
+        break;
+      case 2: // 이름 가나다순 (localeCompare로 한글 지원)
+        sortedData.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+        break;
+      case 3: // 세대수순
+        sortedData.sort((a, b) => b.household_count - a.household_count);
+        break;
+      case 4: // 최근입주순
+        sortedData.sort((a, b) => new Date(b.move_in_date) - new Date(a.move_in_date));
+        break;
+      case 5: // 매물수순
+        sortedData.sort((a, b) => b.sale_count - a.sale_count);
+        break;
+      default:
+        sortedData.sort((a, b) => b.popularity - a.popularity);
+    }
+
+    console.log(sortedData);
+    setInfoContent(sortedData);
+    e.target.classList.add("active");
+  }
 
   /* -------------------------------
      ✅ 폴리곤 및 클러스터

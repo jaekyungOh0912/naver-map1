@@ -20000,3 +20000,106 @@ const markerData = [
     "active": true
   }
 ];
+
+const complexList = [
+  {
+    name: "서면동일파크스위트1차",
+    price: "매매 3억 2000 ~ 6억 800",
+    info: "아파트·500세대·총8동·2015.12.31.",
+    size: "59.84㎡ ~ 134.56㎡",
+    popularity: 70,
+    household_count: 500,
+    move_in_date: "2015-12-31",
+    sale_count: 12
+  },
+  {
+    name: "서면동일파크스위트2차",
+    price: "매매 2억 8000 ~ 5억 900",
+    info: "아파트·620세대·총7동·2016.06.15.",
+    size: "52.34㎡ ~ 120.24㎡",
+    popularity: 60,
+    household_count: 620,
+    move_in_date: "2016-06-15",
+    sale_count: 9
+  },
+  {
+    name: "서면동일파크스위트3차",
+    price: "매매 3억 4500 ~ 7억 1000",
+    info: "아파트·727세대·총9동·2017.06.30.",
+    size: "53.85㎡ ~ 144.84㎡",
+    popularity: 90,
+    household_count: 727,
+    move_in_date: "2017-06-30",
+    sale_count: 18
+  },
+  {
+    name: "연산푸르지오더센트럴",
+    price: "매매 3억 8000 ~ 7억 500",
+    info: "아파트·800세대·총10동·2018.03.28.",
+    size: "59.84㎡ ~ 135.27㎡",
+    popularity: 85,
+    household_count: 800,
+    move_in_date: "2018-03-28",
+    sale_count: 20
+  },
+  {
+    name: "전포자이",
+    price: "매매 4억 1000 ~ 8억 300",
+    info: "아파트·900세대·총12동·2019.08.12.",
+    size: "64.23㎡ ~ 138.59㎡",
+    popularity: 95,
+    household_count: 900,
+    move_in_date: "2019-08-12",
+    sale_count: 25
+  },
+  {
+    name: "부산롯데캐슬센트럴",
+    price: "매매 3억 9500 ~ 7억 800",
+    info: "아파트·650세대·총9동·2020.04.20.",
+    size: "58.47㎡ ~ 132.40㎡",
+    popularity: 65,
+    household_count: 650,
+    move_in_date: "2020-04-20",
+    sale_count: 13
+  },
+  {
+    name: "양정힐스테이트",
+    price: "매매 2억 9000 ~ 5억 600",
+    info: "아파트·560세대·총7동·2014.11.22.",
+    size: "49.12㎡ ~ 110.34㎡",
+    popularity: 50,
+    household_count: 560,
+    move_in_date: "2014-11-22",
+    sale_count: 6
+  },
+  {
+    name: "범천더샵센트럴뷰",
+    price: "매매 3억 6000 ~ 6억 400",
+    info: "아파트·720세대·총8동·2016.09.09.",
+    size: "54.78㎡ ~ 126.75㎡",
+    popularity: 75,
+    household_count: 720,
+    move_in_date: "2016-09-09",
+    sale_count: 10
+  },
+  {
+    name: "초읍롯데캐슬",
+    price: "매매 4억 2000 ~ 8억 1500",
+    info: "아파트·850세대·총11동·2021.02.10.",
+    size: "61.22㎡ ~ 145.19㎡",
+    popularity: 88,
+    household_count: 850,
+    move_in_date: "2021-02-10",
+    sale_count: 23
+  },
+  {
+    name: "부전자이엘라",
+    price: "매매 3억 5000 ~ 6억 200",
+    info: "아파트·610세대·총7동·2017.11.17.",
+    size: "56.33㎡ ~ 128.88㎡",
+    popularity: 55,
+    household_count: 610,
+    move_in_date: "2017-11-17",
+    sale_count: 8
+  }
+];
