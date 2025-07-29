@@ -564,6 +564,18 @@
     if(cluster) updateMarkersByPolygon();
   }
   let clusterIcons=[1,2,3,4,5].map(()=>getBaseIcon(40));
+
+  document.addEventListener('gesturestart', function (e) {
+    e.preventDefault();
+  });
+
+  document.addEventListener('gesturechange', function (e) {
+    e.preventDefault();
+  });
+
+  document.addEventListener('gestureend', function (e) {
+    e.preventDefault();
+  });
 </script>
 </body>
 </html>
