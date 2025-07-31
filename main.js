@@ -325,9 +325,12 @@ function updateMarkersByPolygon() {
 --------------------------------*/
 let regionUpdateTimer=null;
 async function applyRegionUpdate(emdCode) {
-  currentEmdData = window["emd_" + emdCode] || null;
+  const getEmdData = await fetch(`./dongData/emd_${emdCode}.json`);
+  if (!getEmdData.ok) throw new Error('동 데이터 로드 실패');
+  currentEmdData = await getEmdData.json();
+  z
   const zoom = map.getZoom();
-  if (zoom > 14) dataList = currentEmdData ? currentEmdData.features : [];
+  if (zoom > 14) dataList=currentEmdData?currentEmdData.features:[];
   else if (zoom > 11) {
     const res = await fetch(`./sigunguData.json`);
     if (!res.ok) throw new Error('동 데이터 로드 실패');
