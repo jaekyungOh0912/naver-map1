@@ -328,7 +328,7 @@ async function applyRegionUpdate(emdCode) {
   const getEmdData = await fetch(`./dongData/emd_${emdCode}.json`);
   if (!getEmdData.ok) throw new Error('동 데이터 로드 실패');
   currentEmdData = await getEmdData.json();
-  z
+  console.log(currentEmdData);
   const zoom = map.getZoom();
   if (zoom > 14) dataList=currentEmdData?currentEmdData.features:[];
   else if (zoom > 11) {
