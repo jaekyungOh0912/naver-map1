@@ -152,24 +152,7 @@
       </ul>
     </div>
     <div class="infoBody">
-      <div class="infoContentBox">
-        <p>서면동일파크스위트3차</p>
-        <p>매매 3억 4,500 ~ 7억 1,000</p>
-        <p>아파트·727세대·총9동·2017.06.30.</p>
-        <p>53.85㎡ ~ 144.84㎡</p>
-      </div>
-      <div class="infoContentBox">
-        <p>서면동일파크스위트3차</p>
-        <p>매매 3억 4,500 ~ 7억 1,000</p>
-        <p>아파트·727세대·총9동·2017.06.30.</p>
-        <p>53.85㎡ ~ 144.84㎡</p>
-      </div>
-      <div class="infoContentBox">
-        <p>서면동일파크스위트3차</p>
-        <p>매매 3억 4,500 ~ 7억 1,000</p>
-        <p>아파트·727세대·총9동·2017.06.30.</p>
-        <p>53.85㎡ ~ 144.84㎡</p>
-      </div>
+
     </div>
   </div>
 </div>
@@ -285,8 +268,7 @@
   function setMarkers(lat,lng,type,name,price,count,active){
     const priceText = price / 100000000;
 
-    const countHTML = (count && count>0)
-      ? `<div class="count ${active ? '' : 'deActive'}">${count}</div>` : "";
+    const countHTML = (count && count>0) ? `<div class="count ${active ? '' : 'deActive'}">${count}</div>` : "";
     const textHTML = `<div class="textBox"><p>${name}</p><p>${active ? `${priceText.toFixed(2)}억원` : ""}</p></div>`
     const markerHTML = `<div class="marker"><img src="./image/type${type}.png""/>${countHTML}${textHTML}</div>`;
 
@@ -426,22 +408,27 @@
     return inside;
   }
 
-  function filterMarkersByEmdPolygon(){
-    if(!currentEmdData||!currentEmdData.features) return [];
-    const polygonList = currentEmdData.features.map(f=>createPolygon(f));
-    const polygons = polygonList.map(p=>p.getPaths().getArray().map(path=>path.getArray()));
-    const boundsList = polygonList.map(p=>p.bounds);
+  function filterMarkersByEmdPolygon() {
+    if (!currentEmdData || !currentEmdData.features) return [];
+
     const mapBounds = map.getBounds();
 
-    return markerDataList.filter(m=>{
-      const markerPos=new naver.maps.LatLng(m.lat,m.lng);
-      if(!mapBounds.hasLatLng(markerPos)) return false;
-      let inside=false;
-      for(let i=0;i<polygons.length;i++){
-        if(!boundsList[i].hasLatLng(markerPos)) continue;
-        if(isPointInsidePolygon(markerPos,polygons[i])){ inside=true; break; }
-      }
-      return inside;
+    // 먼저 지도 영역 안에 있는 마커만 필터링
+    const visibleMarkers = markerDataList.filter(m => {
+      const pos = new naver.maps.LatLng(m.lat, m.lng);
+      return mapBounds.hasLatLng(pos);
+    });
+
+    // 폴리곤 리스트 준비
+    const polygons = currentEmdData.features.map(f => {
+      const polygon = createPolygon(f);
+      return polygon.getPaths().getArray().map(path => path.getArray());
+    });
+
+    // 지도 안에 있는 마커 중 폴리곤 내부에 있는 것만 필터링
+    return visibleMarkers.filter(m => {
+      const markerPos = new naver.maps.LatLng(m.lat, m.lng);
+      return polygons.some(p => isPointInsidePolygon(markerPos, p));
     });
   }
 
