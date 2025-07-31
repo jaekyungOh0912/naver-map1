@@ -107,6 +107,7 @@ async function applyRegionUpdate(){
   }
 
   dataList = (zoom > 14 && currentEmdData) ? currentEmdData.features : (zoom > 11 && sigunguGeoJson) ? sigunguGeoJson.features : [];
+  console.log(dataList);
   const filteredMarkers = (zoom > 14 && currentEmdData) ? filterMarkersByEmdPolygon() : markerDataList;
   renderMarkers(filteredMarkers);
   renderRegionAtCenter(map.getCenter());
