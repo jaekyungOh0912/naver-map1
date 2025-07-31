@@ -10,7 +10,6 @@ const addressBox = document.getElementById("addressBox");
 
 const loadedEmdCodes = [];    // 이미 로드된 행정동 코드
 const polygonCache = {};      // 폴리곤 캐싱
-let sigunguGeoJson = null;
 let cluster = null;           // 마커 클러스터
 let activePolygon = null;     // 현재 활성화된 폴리곤
 let dataList = [];            // 현재 지도에 표시할 데이터
@@ -20,19 +19,26 @@ const markers = [];           // 지도에 표시된 마커 목록
 /* -------------------------------
    ✅ 동적 스크립트 로딩 (행정동 데이터)
 --------------------------------*/
-async function loadEmdJson(code, callback) {
-  if (loadedEmdCodes.includes(code)) return callback?.();
-
-  try {
-    const res = await fetch(`./dongData/emd_${code}.json`);
-    if (!res.ok) throw new Error('emd JSON load failed');
-    const data = await res.json();
-    currentEmdData = data;
-    loadedEmdCodes.push(code);
-    callback?.();
-  } catch (e) {
-    console.error("Failed to load emd json:", e);
+function loadEmdScript(code, callback) {
+  // 이미 불러온 데이터면 콜백만 실행
+  if (window["emd_" + code]) {
+    if (!loadedEmdCodes.includes(code)) loadedEmdCodes.push(code);
+    callback && callback();
+    return;
   }
+  // 중복 요청 방지
+  if (loadedEmdCodes.includes(code)) {
+    callback && callback();
+    return;
+  }
+  // 새로운 스크립트 로드
+  const script = document.createElement("script");
+  script.src = `./dongData/emd_${code}.js`;
+  script.onload = () => {
+    loadedEmdCodes.push(code);
+    callback && callback();
+  };
+  document.body.appendChild(script);
 }
 
 /* -------------------------------
@@ -89,47 +95,6 @@ function searchAddress() {
     });
   });
 }
-
-/* -------------------------------
-   ✅ 지도 중심 변경 시 업데이트 (Debounce)
---------------------------------*/
-let regionUpdateTimer=null;
-async function applyRegionUpdate(){
-  const zoom = map.getZoom();
-  if (zoom > 14 && !currentEmdData) return; // 데이터가 없으면 중단
-  if (zoom > 11 && !sigunguGeoJson) {
-    try {
-      const res = await fetch("./sigunguData.json");
-      if (!res.ok) throw new Error("sigungu load failed");
-      sigunguGeoJson = await res.json();
-    } catch (e) {
-      console.error("시군구 JSON 로드 실패:", e);
-    }
-  }
-
-  dataList = (zoom > 14 && currentEmdData) ? currentEmdData.features : (zoom > 11 && sigunguGeoJson) ? sigunguGeoJson.features : [];
-  console.log(dataList);
-  const filteredMarkers = (zoom > 14 && currentEmdData) ? filterMarkersByEmdPolygon() : markerDataList;
-  renderMarkers(filteredMarkers);
-  renderRegionAtCenter(map.getCenter());
-}
-
-function updateRegionByCenter(){
-  clearTimeout(regionUpdateTimer);
-  regionUpdateTimer = setTimeout(()=>{
-    const center=map.getCenter();
-    naver.maps.Service.reverseGeocode({
-      coords:center,
-      orders:[naver.maps.Service.OrderType.ADDR,naver.maps.Service.OrderType.ROAD_ADDR].join(',')
-    }, async (status,response)=>{
-      if(status!==naver.maps.Service.Status.OK)return;
-      const result=response.v2.results[0]; if(!result)return;
-      const emdCode=result.code.id.slice(0,2);
-      await loadEmdJson(emdCode, ()=>applyRegionUpdate(emdCode));
-    });
-  },300);
-}
-
 
 /* -------------------------------
    ✅ 마커 관련
@@ -353,6 +318,38 @@ function updateMarkersByPolygon() {
       c.getElement().querySelector('div:first-child').innerText = count;
     }
   });
+}
+
+/* -------------------------------
+   ✅ 지도 중심 변경 시 업데이트 (Debounce)
+--------------------------------*/
+let regionUpdateTimer=null;
+function applyRegionUpdate(emdCode){
+  currentEmdData=window["emd_"+emdCode]||null;
+  const zoom=map.getZoom();
+  if(zoom>14) dataList=currentEmdData?currentEmdData.features:[];
+  else if(zoom>11) dataList=sigunguGeoJson.features;
+  else dataList=[];
+  const filteredMarkers=(zoom>14&&currentEmdData)?filterMarkersByEmdPolygon():markerDataList;
+  renderMarkers(filteredMarkers);
+  renderRegionAtCenter(map.getCenter());
+}
+
+function updateRegionByCenter(){
+  clearTimeout(regionUpdateTimer);
+  regionUpdateTimer = setTimeout(()=>{
+    const center=map.getCenter();
+    naver.maps.Service.reverseGeocode({
+      coords:center,
+      orders:[naver.maps.Service.OrderType.ADDR,naver.maps.Service.OrderType.ROAD_ADDR].join(',')
+    },(status,response)=>{
+      if(status!==naver.maps.Service.Status.OK)return;
+      const result=response.v2.results[0]; if(!result)return;
+      const emdCode=result.code.id.slice(0,2);
+      if(window["emd_"+emdCode]) applyRegionUpdate(emdCode);
+      else loadEmdScript(emdCode,()=>applyRegionUpdate(emdCode));
+    });
+  },300); // 300ms 지연 → 불필요한 연속 호출 방지
 }
 
 /* -------------------------------
