@@ -427,21 +427,26 @@
   }
 
   function filterMarkersByEmdPolygon(){
-    if(!currentEmdData||!currentEmdData.features) return [];
-    const polygonList = currentEmdData.features.map(f=>createPolygon(f));
-    const polygons = polygonList.map(p=>p.getPaths().getArray().map(path=>path.getArray()));
-    const boundsList = polygonList.map(p=>p.bounds);
+    if (!currentEmdData || !currentEmdData.features) return [];
+
+    const polygonList = currentEmdData.features.map(f => createPolygon(f));
+    const polygons = polygonList.map(p => p.getPaths().getArray().map(path => path.getArray()));
+    const boundsList = polygonList.map(p => p.bounds);
+
     const mapBounds = map.getBounds();
 
-    return markerDataList.filter(m=>{
-      const markerPos=new naver.maps.LatLng(m.lat,m.lng);
-      if(!mapBounds.hasLatLng(markerPos)) return false;
-      let inside=false;
-      for(let i=0;i<polygons.length;i++){
-        if(!boundsList[i].hasLatLng(markerPos)) continue;
-        if(isPointInsidePolygon(markerPos,polygons[i])){ inside=true; break; }
-      }
-      return inside;
+    // ✅ 지도 bounds 안에 있는 데이터만 먼저 필터링
+    const visibleMarkersOnly = markerDataList.filter(m => {
+      const markerPos = new naver.maps.LatLng(m.lat, m.lng);
+      return mapBounds.hasLatLng(markerPos);
+    });
+
+    // ✅ 그 중에서 polygon 안에 있는 것만 다시 필터링
+    return visibleMarkersOnly.filter(m => {
+      const markerPos = new naver.maps.LatLng(m.lat, m.lng);
+      return polygons.some((polygon, i) =>
+        boundsList[i].hasLatLng(markerPos) && isPointInsidePolygon(markerPos, polygon)
+      );
     });
   }
 
