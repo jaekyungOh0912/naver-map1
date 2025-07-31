@@ -383,7 +383,8 @@ function handleFilterChange(type){
   updateRegionByCenter();
 }
 
-naver.maps.Event.addListener(map,'idle',updateRegionByCenter);
+naver.maps.Event.addListener(map, 'idle', updateRegionByCenter);
+naver.maps.Event.addListener(map, 'dragend', updateRegionByCenter);
 naver.maps.Event.addListener(map,'zoom_changed',()=>{updateClusterIconsByZoom();updateRegionByCenter();});
 window.addEventListener("load",()=>{goMyLocation();updateRegionByCenter();});
 
