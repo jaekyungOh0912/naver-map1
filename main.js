@@ -93,10 +93,21 @@ function searchAddress() {
    ✅ 지도 중심 변경 시 업데이트 (Debounce)
 --------------------------------*/
 let regionUpdateTimer=null;
-function applyRegionUpdate(emdCode){
+async function applyRegionUpdate(){
   const zoom = map.getZoom();
+  if (zoom > 14 && !currentEmdData) return; // 데이터가 없으면 중단
+  if (zoom > 11 && !sigunguGeoJson) {
+    try {
+      const res = await fetch("./sigunguData.json");
+      if (!res.ok) throw new Error("sigungu load failed");
+      sigunguGeoJson = await res.json();
+    } catch (e) {
+      console.error("시군구 JSON 로드 실패:", e);
+    }
+  }
+
+  dataList = (zoom > 14 && currentEmdData) ? currentEmdData.features : (zoom > 11 && sigunguGeoJson) ? sigunguGeoJson.features : [];
   const filteredMarkers = (zoom > 14 && currentEmdData) ? filterMarkersByEmdPolygon() : markerDataList;
-  dataList = (zoom > 14 && currentEmdData) ? currentEmdData.features : [];
   renderMarkers(filteredMarkers);
   renderRegionAtCenter(map.getCenter());
 }
