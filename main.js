@@ -41,12 +41,43 @@ async function loadEmdJson(code, callback) {
 }
 
 /* -------------------------------
+   ✅ 현재 위치 및 주소 표시
+--------------------------------*/
+function goMyLocation() {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(pos => {
+    const lat = pos.coords.latitude, lng = pos.coords.longitude;
+    const loc = new naver.maps.LatLng(lat, lng);
+    map.setCenter(loc);
+    map.setZoom(16);
+    updateAddress(lat, lng);
+  }, () => {
+    addressBox.innerText = "위치 정보를 가져올 수 없습니다.";
+  });
+}
+
+function updateAddress(lat, lng) {
+  naver.maps.Service.reverseGeocode({
+    coords: new naver.maps.LatLng(lat, lng),
+    orders: [naver.maps.Service.OrderType.ROAD_ADDR, naver.maps.Service.OrderType.ADDR].join(',')
+  }, (status, res) => {
+    if (status !== naver.maps.Service.Status.OK) {
+      addressBox.innerText = "주소를 가져올 수 없습니다.";
+      return;
+    }
+    const result = res.v2.address;
+    addressBox.innerText = "📍 " + (result.roadAddress || result.jibunAddress || "주소 없음");
+  });
+}
+
+/* -------------------------------
    ✅ 지도 중심 위치로 영역 적용
 --------------------------------*/
 function updateRegionByCenter() {
   clearTimeout(regionUpdateTimer);
   regionUpdateTimer = setTimeout(() => {
     const center = map.getCenter();
+    updateAddress(center.lat(), center.lng());
     naver.maps.Service.reverseGeocode({
       coords: center,
       orders: [naver.maps.Service.OrderType.ADDR, naver.maps.Service.OrderType.ROAD_ADDR].join(',')
@@ -222,5 +253,6 @@ naver.maps.Event.addListener(map, 'zoom_changed', () => {
 });
 
 window.addEventListener("load", () => {
+  goMyLocation();
   updateRegionByCenter();
 });
