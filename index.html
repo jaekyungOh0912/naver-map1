@@ -555,7 +555,7 @@
   }
   function updateClusterIconsByZoom(){
     const zoom=map.getZoom(),defaultZoom=16-zoom;
-    let iconSize=(defaultZoom>0)?50+(15*defaultZoom):50;
+    let iconSize=(defaultZoom>0)?50+(10*defaultZoom):50;
     clusterIcons=[1,2,3,4,5].map(()=>getBaseIcon(iconSize));
     if(cluster) updateMarkersByPolygon();
   }
