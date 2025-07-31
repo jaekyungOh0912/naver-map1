@@ -445,20 +445,38 @@
     updateMarkersByPolygon();
   }
 
-  function updateMarkersByPolygon(){
-    if(!activePolygon){
-      if(cluster) cluster.setMap(null);
+  function updateMarkersByPolygon() {
+    if (!activePolygon) {
+      if (cluster) cluster.setMap(null);
       return;
     }
 
-    const paths=activePolygon.getPaths().getArray().map(path=>path.getArray());
-    const visibleMarkers=markers.filter(m=>isPointInsidePolygon(m.getPosition(),paths));
-    if(cluster) cluster.setMap(null);
+    const mapBounds = map.getBounds();
+    const paths = activePolygon.getPaths().getArray().map(path => path.getArray());
+
+    // 지도 영역에 포함된 마커만 먼저 필터링
+    const visibleInMap = markers.filter(m => mapBounds.hasLatLng(m.getPosition()));
+
+    // 그 중에서 폴리곤 내부에 포함된 마커만 필터링
+    const visibleMarkers = visibleInMap.filter(m =>
+      isPointInsidePolygon(m.getPosition(), paths)
+    );
+
+    // 기존 클러스터 제거 후 재생성
+    if (cluster) cluster.setMap(null);
+
     cluster = new MarkerClustering({
-      map, markers:visibleMarkers, disableClickZoom:false, gridSize:300,
-      minClusterSize:1, maxZoom:18, icons:clusterIcons,
-      indexGenerator:[10,100,200,500,1000],
-      stylingFunction:(c,count)=>{c.getElement().querySelector('div:first-child').innerText=count;}
+      map,
+      markers: visibleMarkers,
+      disableClickZoom: false,
+      gridSize: 300,
+      minClusterSize: 1,
+      maxZoom: 18,
+      icons: clusterIcons,
+      indexGenerator: [10, 100, 200, 500, 1000],
+      stylingFunction: (c, count) => {
+        c.getElement().querySelector('div:first-child').innerText = count;
+      }
     });
   }
 
