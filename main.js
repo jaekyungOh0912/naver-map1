@@ -324,13 +324,17 @@ function updateMarkersByPolygon() {
    ✅ 지도 중심 변경 시 업데이트 (Debounce)
 --------------------------------*/
 let regionUpdateTimer=null;
-function applyRegionUpdate(emdCode){
-  currentEmdData=window["emd_"+emdCode]||null;
-  const zoom=map.getZoom();
-  if(zoom>14) dataList=currentEmdData?currentEmdData.features:[];
-  else if(zoom>11) dataList=sigunguGeoJson.features;
-  else dataList=[];
-  const filteredMarkers=(zoom>14&&currentEmdData)?filterMarkersByEmdPolygon():markerDataList;
+async function applyRegionUpdate(emdCode) {
+  currentEmdData = window["emd_" + emdCode] || null;
+  const zoom = map.getZoom();
+  if (zoom > 14) dataList = currentEmdData ? currentEmdData.features : [];
+  else if (zoom > 11) {
+    const res = await fetch(`./sigunguData.json`);
+    if (!res.ok) throw new Error('동 데이터 로드 실패');
+    sigunguJson = await res.json();
+    dataList = sigunguJson.features;
+  } else dataList = [];
+  const filteredMarkers = (zoom > 14 && currentEmdData) ? filterMarkersByEmdPolygon() : markerDataList;
   renderMarkers(filteredMarkers);
   renderRegionAtCenter(map.getCenter());
 }
