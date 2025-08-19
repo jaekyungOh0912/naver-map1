@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>지도 테스트</title>
+
+  <!-- 네이버 지도 & 데이터 -->
+  <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=n08un8adzv&submodules=geocoder"></script>
+  <script src="./MarkerClustering.js"></script>
+  <script src="./markerData.js"></script>
+
+  <style>
+    body { margin: 0; padding: 0; }
+    #map { width: 100dvw; height: 100dvh; min-width: 280px; min-height: 400px;
+      /* 스크롤/제스처 성능 개선 */
+      touch-action: pan-x pan-y; }
+    /* 마커 */
+    .marker { width: 30px; height: 30px; position: relative; }
+    .marker img { width: 30px; height: 30px; display: block; }
+  </style>
+</head>
+<body>
+<div id="map"></div>
+
+<script>
+  // ========= 설정 =========
+  const VIEW_BUFFER_RATIO = 0.2;     // 뷰포트에서 바깥으로 20% 버퍼
+  const CLUSTER_GRID_SIZE = 300;
+  const CLUSTER_MAX_ZOOM  = 18;
+
+  // ========= 지도 초기화 =========
+  const map = new naver.maps.Map('map', {
+    center: new naver.maps.LatLng(35.144, 129.060),
+    zoom: 16,
+    minZoom: 7,
+    maxZoom: 19
+  });
+
+  // ========= 원본 데이터 =========
+  // markerData.js에서 제공한다고 가정
+  const dataList = Array.isArray(markerData) ? markerData : [];
+
+  // ========= 상태(캐시/풀) =========
+  const markerPool = new Map(); // key -> naver.maps.Marker (재사용)
+  let   visibleKeys = new Set(); // 현재 화면(버퍼 포함)에 보여야 하는 키 집합
+  let   cluster = null;
+
+  // 클러스터 아이콘(줌에 따라 크기 변경)
+  let clusterIcons = makeClusterIcons(40);
+  let lastIconSize = 40;
+
+  // ========= 유틸 =========
+  const keyOf = (lat, lng) => `${lat.toFixed(6)},${lng.toFixed(6)}`;
+
+  // 경계를 퍼센트만큼 확장
+  function expandBounds(bounds, ratio = VIEW_BUFFER_RATIO) {
+    const sw = bounds.getSW();
+    const ne = bounds.getNE();
+    const latSpan = ne.lat() - sw.lat();
+    const lngSpan = ne.lng() - sw.lng();
+    const dLat = latSpan * ratio;
+    const dLng = lngSpan * ratio;
+    return new naver.maps.LatLngBounds(
+      new naver.maps.LatLng(sw.lat() - dLat, sw.lng() - dLng),
+      new naver.maps.LatLng(ne.lat() + dLat, ne.lng() + dLng)
+    );
+  }
+
+  function makeMarker(item) {
+    const html = `<div class="marker"><img src="./image/type${item.type}.png" alt="마커" /></div>`;
+    return new naver.maps.Marker({
+      position: new naver.maps.LatLng(item.lat, item.lng),
+      map,
+      icon: {
+        content: html,
+        size: new naver.maps.Size(30, 30),
+        scaledSize: new naver.maps.Size(30, 30),
+        anchor: new naver.maps.Point(15, 30)
+      }
+    });
+  }
+
+  function makeClusterIcons(size) {
+    const base = (s) => ({
+      content: `<div style="cursor:pointer;width:${s}px;height:${s}px;line-height:${s+2}px;
+                         font-size:${Math.max(12, s/3)}px;color:white;text-align:center;font-weight:bold;
+                         background:url(./image/baseIcon.png);background-size:contain;"></div>`,
+      size: new naver.maps.Size(s, s),
+      anchor: new naver.maps.Point(s/2, s/2)
+    });
+    return [1,2,3,4,5].map(() => base(size));
+  }
+
+  // ========= 가시 데이터 선별 =========
+  function pickVisibleData() {
+    const b = map.getBounds();
+    if (!b) return [];
+    const expanded = expandBounds(b, VIEW_BUFFER_RATIO);
+    const out = [];
+    for (const v of dataList) {
+      if (expanded.hasLatLng(new naver.maps.LatLng(v.lat, v.lng))) out.push(v);
+    }
+    return out;
+  }
+
+  // ========= 마커 동기화(풀 재사용) =========
+  function syncMarkers() {
+    const visibleData = pickVisibleData();
+
+    // 다음 프레임에 필요한 key 집합
+    const nextKeys = new Set(visibleData.map(v => keyOf(v.lat, v.lng)));
+
+    // 변화 감지: 가시 키 셋이 이전과 동일하면 조기 종료
+    if (setsAreEqual(nextKeys, visibleKeys)) {
+      // 그래도 클러스터 아이콘 크기 변경은 반영 필요할 수 있으니 여기서 처리 X
+    } else {
+      // 1) 필요한 마커는 생성/보이기
+      for (const v of visibleData) {
+        const k = keyOf(v.lat, v.lng);
+        let m = markerPool.get(k);
+        if (!m) {
+          m = makeMarker(v);
+          markerPool.set(k, m);
+        } else if (!m.getMap()) {
+          m.setMap(map);
+        }
+      }
+
+      // 2) 화면 밖으로 나간 마커는 숨기기
+      for (const [k, m] of markerPool) {
+        if (!nextKeys.has(k) && m.getMap()) {
+          m.setMap(null);
+        }
+      }
+
+      // 3) 상태 갱신
+      visibleKeys = nextKeys;
+
+      // 4) 클러스터 마커 목록 반영
+      refreshCluster();
+    }
+
+    // 줌에 따른 아이콘 크기 갱신(아이콘 크기가 변했다면 클러스터 아이콘만 갱신)
+    updateClusterIconsByZoom(); // 내부에서 변화 없으면 스킵
+  }
+
+  function setsAreEqual(a, b) {
+    if (a.size !== b.size) return false;
+    for (const v of a) if (!b.has(v)) return false;
+    return true;
+  }
+
+  // ========= 클러스터 =========
+  function refreshCluster() {
+    const currentMarkers = [...visibleKeys]
+      .map(k => markerPool.get(k))
+      .filter(m => m && m.getMap());
+
+    if (!cluster) {
+      cluster = new MarkerClustering({
+        map,
+        markers: currentMarkers,
+        disableClickZoom: false,
+        gridSize: CLUSTER_GRID_SIZE,
+        minClusterSize: 1,
+        maxZoom: CLUSTER_MAX_ZOOM,
+        icons: clusterIcons,
+        indexGenerator: [10, 100, 200, 500, 1000],
+        stylingFunction: (c, count) => {
+          const el = c.getElement();
+          if (el) el.querySelector('div:first-child').innerText = count;
+        }
+      });
+    } else if (typeof cluster.setMarkers === 'function') {
+      // 라이브러리가 지원하면 마커 집합만 교체 (리스너 재등록 최소화)
+      cluster.setMarkers(currentMarkers);
+    } else {
+      // 지원하지 않는 경우에만 재생성(빈번하지 않도록 위에서 변화 감지)
+      cluster.setMap(null);
+      cluster = null;
+      refreshCluster();
+    }
+  }
+
+  function updateClusterIconsByZoom() {
+    const zoom = map.getZoom();
+    const baseSize = 50;
+    const delta = Math.max(0, 16 - zoom); // 줌 아웃할수록 크게
+    const nextSize = baseSize + 10 * delta;
+
+    if (nextSize === lastIconSize) return; // 변화 없으면 스킵
+    lastIconSize = nextSize;
+
+    const nextIcons = makeClusterIcons(nextSize);
+    clusterIcons = nextIcons;
+
+    if (cluster) {
+      if (typeof cluster.setIcons === 'function') {
+        cluster.setIcons(clusterIcons);
+        if (typeof cluster.redraw === 'function') cluster.redraw();
+      } else {
+        // 미지원 시에도 가급적 재생성은 드물게: 위의 변화 감지 덕분에 빈도 낮음
+        cluster.setMap(null);
+        cluster = null;
+        refreshCluster();
+      }
+    }
+  }
+
+  // ========= 내 위치 =========
+  let myLocationMarker = null;
+  function goMyLocation() {
+    // 패시브 권장: 직접 다는 스크롤/터치 리스너가 없지만 원칙적으로 성능에 도움
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        const loc = new naver.maps.LatLng(lat, lng);
+        if (!myLocationMarker) {
+          myLocationMarker = new naver.maps.Marker({
+            position: loc,
+            map,
+            icon: {
+              url: "https://maps.gstatic.com/mapfiles/ms2/micons/red-dot.png",
+              size: new naver.maps.Size(32, 32),
+              scaledSize: new naver.maps.Size(32, 32)
+            }
+          });
+        } else {
+          myLocationMarker.setPosition(loc);
+        }
+        map.setCenter(loc); // idle 발생 → syncMarkers 1회 실행
+      },
+      () => console.warn("내 위치 정보를 가져올 수 없습니다.")
+    );
+  }
+
+  // ========= 이벤트(한 번만) =========
+  // 줌/드래그 동작이 끝난 뒤 'idle' 1회만 호출 → 중복 실행/리스너 누적 방지
+  naver.maps.Event.addListener(map, 'idle', () => {
+    syncMarkers();
+  });
+
+  // 초기 1회
+  syncMarkers();
+  // 필요 시 켜기: goMyLocation();
+</script>
+</body>
+</html>
