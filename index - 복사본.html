@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>지도 테스트</title>
+  <!-- 네이버 지도, 클러스터링, 데이터 -->
+  <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=n08un8adzv&submodules=geocoder"></script>
+  <script src="./markerData.js"></script> <!-- ✅ defer 제거 -->
+  <script src="./MarkerClustering.js"></script>
+
+  <style>
+    /* 기본 레이아웃 및 UI 스타일 */
+    body { margin: 0; padding: 0; }
+    button { outline: none; cursor: pointer; }
+    p { margin: 0; }
+    .searchBox { width:100%;height:70px;background:#E5EDF8;position:fixed;top:0;left:0;z-index:999; }
+    .searchBox .searchInputBox { width:calc(100% - 20px);max-width:340px;height:50px;background:#fff;margin:8px auto 0;display:flex;overflow:hidden; }
+    .searchBox .searchInputBox input { width:calc(100% - 55px);height:50px;padding:0 5px;border:none;box-sizing:border-box; }
+    .searchBox .searchInputBox button { width:50px;height:50px;border:none;background:transparent; }
+    .searchBox ul { width:calc(100% - 20px);max-width:340px;max-height:150px;list-style:none;padding:0;margin:5px 0 0 0;overflow-y:auto;background:#fff;border:1px solid #ccc;position:fixed;top:55px;left:50%;transform:translateX(-50%);}
+    .searchBox li { padding:10px 8px;cursor:pointer;font-size:14px;border-bottom:1px solid #DDD; }
+    .searchBox li:hover { background:#f0f0f0; }
+    #map { width:100dvw; height:100dvh; }
+    .filterBox { position:fixed;top:75px;right:10px; }
+    .filterBox button { width:50px;height:50px;display:block;margin-top:8px;font-size:12px; }
+    .filterBox button:nth-child(1) { margin-top:0; }
+    .filterBox button.active { background:red;color:white; }
+    .controlBox { position:fixed;top:75px;left:10px; }
+    .controlBox button { width:50px;height:50px;display:block;margin-top:8px;font-size:12px; }
+    .controlBox button:nth-child(1) { margin-top:0; }
+    .addressBox { position:fixed;top:80px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,0.9);padding:8px 14px;border-radius:6px;box-shadow:0 2px 4px rgba(0,0,0,0.2);font-size:14px;color:#333;z-index:998;}
+    #mapComponent.hide .searchBox,
+    #mapComponent.hide .filterBox,
+    #mapComponent.hide .controlBox,
+    #mapComponent.hide .addressBox { display:none; }
+
+    /* 마커 */
+    .marker { width: 30px; height: 30px; position: relative; }
+    .marker img { width: 30px; height: 30px; }
+    .marker .count { width: 18px; height: 18px; position: absolute; top: -5px; right: -10px; background-color: red; color: white; font-size: 11px; line-height: 18px; text-align: center; border-radius: 50%; }
+    .marker .count.deActive { background-color: gray;}
+    .marker .textBox { width: 80px; height: 40px; position: absolute; padding: 0 3px; bottom: -40px; right: -25px; background-color: white; font-size: 13px; border-radius: 6px;}
+
+    /* infoBox */
+    .infoBox { position: fixed; bottom: -55dvh; left: 0; width: 100dvw; height: 55dvh; background-color: #FFF; z-index: 100; transition: bottom 0.3s ease-in-out;}
+    .infoBox.show {bottom: 0;}
+    .infoBox .infoHead p {padding: 5px; font-weight: 600;}
+    .infoBox .infoHead ul {
+      display: flex;
+      align-items: center;
+      justify-content: center;  /* 가운데 정렬 */
+      margin: 0;
+      padding: 0;
+      border-top: 1px solid #333;
+      border-bottom: 1px solid #333;
+    }
+
+    .infoBox .infoHead ul li {
+      list-style: none;
+      width: 20%;
+      text-align: center;
+      padding: 5px 0;
+      color: #666;
+      position: relative;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .infoBox .infoHead ul li.active {
+      color: #008000; font-weight: 600;
+    }
+
+    .infoBox .infoHead ul li:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      height: 10px;
+      border-right: 1px solid #333;
+    }
+
+    .infoBox .infoBody {
+      height: calc(100% - 65px);
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    .infoBox .infoBody .infoContentBox {
+      padding: 8px 0;
+      margin: 0 5px;
+      width: calc(100% - 10px);
+      box-sizing: border-box;
+    }
+    .infoBox .infoBody .infoContentBox:not(:last-child) {
+      border-bottom: 1px solid #333;
+    }
+    .infoBox .infoBody .infoContentBox p {
+      font-size: 14px;
+      color: #666666;
+    }
+    .infoBox .infoBody .infoContentBox p:nth-child(1) {
+      font-weight: 700;
+      color: #333;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+<div id="mapComponent">
+  <!-- 주소 검색 박스 -->
+  <div class="searchBox">
+    <div class="searchInputBox">
+      <input type="text" id="searchInput" placeholder="주소를 입력하세요" />
+      <button onclick="searchAddress()"><img src="image/search.png" alt="검색"></button>
+    </div>
+    <ul id="searchResults"></ul>
+  </div>
+
+  <!-- 지도 영역 -->
+  <div id="map"></div>
+
+  <!-- 현재 주소 표시 -->
+  <div class="addressBox" id="addressBox">주소를 불러오는 중...</div>
+
+  <!-- 필터 버튼 -->
+  <div class="filterBox">
+    <button class="active" onclick="handleFilterChange(0)">전체</button>
+    <button onclick="handleFilterChange(1)">아파트</button>
+    <button onclick="handleFilterChange(2)">오피스텔</button>
+    <button onclick="handleFilterChange(3)">연립,다세대</button>
+  </div>
+
+  <!-- 컨트롤 버튼 -->
+  <div class="controlBox">
+    <button onclick="goMyLocation()">📍</button>
+    <button onclick="zoomIn()">＋</button>
+    <button onclick="zoomOut()">－</button>
+  </div>
+
+  <!-- 정보 레이어 영역 -->
+  <div class="infoBox">
+    <div class="infoHead">
+      <p>총 <span class="count">7</span>개의 단지가 있습니다</p>
+      <ul>
+        <li class="active" onclick="handelSortFilter(event, 1)">인기순</li>
+        <li onclick="handelSortFilter(event, 2)">가나다순</li>
+        <li onclick="handelSortFilter(event, 3)">세대수순</li>
+        <li onclick="handelSortFilter(event, 4)">최근입주순</li>
+        <li onclick="handelSortFilter(event, 5)">매물수순</li>
+      </ul>
+    </div>
+    <div class="infoBody">
+
+    </div>
+  </div>
+</div>
+<script src="./main2.js"></script> <!-- 직접 작성한 메인 JS -->
+</body>
+</html>

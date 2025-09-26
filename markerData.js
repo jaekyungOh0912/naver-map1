@@ -19998,6 +19998,26 @@ const markerData = [
     "id": 2000,
     "count": 3,
     "active": true
+  },
+  {
+    "lat": 37.5193800,
+    "lng": 127.0367525,
+    "type": 3,
+    "name": "건물_2000",
+    "price": 633318797,
+    "id": 2000,
+    "count": 3,
+    "active": true
+  },
+  {
+    "lat": 37.5252611,
+    "lng": 127.0553779,
+    "type": 3,
+    "name": "건물_2000",
+    "price": 633318797,
+    "id": 2000,
+    "count": 3,
+    "active": true
   }
 ];
 

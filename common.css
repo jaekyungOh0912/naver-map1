@@ -1,0 +1,13 @@
+.test {
+  position: relative;
+  box-sizing: border-box;
+  font-weight: 400;
+  letter-spacing: -4px;
+  display: flex;
+  align-content: start;
+  justify-content: left;
+  align-items: start;
+  word-break: break-all;
+  font-size: inherit;
+
+}
